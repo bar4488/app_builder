@@ -120,7 +120,7 @@ class Node {
 
 class BlueprintEditorState extends ChangeNotifier {
   final List<Node> _nodes = [];
-  final Set<Connection> _connections = {};
+  final List<Connection> _connections = [];
   Offset _canvasOffset = Offset.zero; // For panning
   double _scale = 1.0; // For zooming
 
@@ -131,7 +131,7 @@ class BlueprintEditorState extends ChangeNotifier {
   PinDirection? dragStartPinDirection;
 
   List<Node> get nodes => _nodes;
-  Set<Connection> get connections => _connections;
+  List<Connection> get connections => _connections;
   Offset get canvasOffset => _canvasOffset;
   double get scale => _scale;
 
@@ -145,6 +145,18 @@ class BlueprintEditorState extends ChangeNotifier {
   // Add these properties for context menu
   Offset? _contextMenuPosition;
   Offset? get contextMenuPosition => _contextMenuPosition;
+
+  static const double stackWidth = 4000.0;
+  static const double stackHeight = 4000.0;
+
+  Connection? _hoveredConnection;
+  Connection? get hoveredConnection => _hoveredConnection;
+
+  void setHoveredConnection(Connection? connection) {
+    if (_hoveredConnection == connection) return; // No change
+    _hoveredConnection = connection;
+    notifyListeners();
+  }
 
   void showContextMenu(Offset position) {
     _contextMenuPosition = position;
@@ -178,9 +190,6 @@ class BlueprintEditorState extends ChangeNotifier {
     _currentHoverPinKey = pinKey;
     notifyListeners();
   }
-
-  static const double stackWidth = 4000.0;
-  static const double stackHeight = 4000.0;
 
   // Add helper method to constrain position
   Offset _constrainPosition(Offset position, Size nodeSize) {
@@ -475,165 +484,189 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
               children: [
                 Listener(
                   onPointerSignal: _handleScrollZoom,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    // Add right click handler
-                    onSecondaryTapUp: (details) {
-                      final RenderBox box =
-                          context.findRenderObject() as RenderBox;
-                      final localPosition = box.globalToLocal(
-                        details.globalPosition,
-                      );
-                      editorState.showContextMenu(localPosition);
-                    },
-                    onPanStart: (details) {
-                      _lastPanPosition = details.globalPosition;
-                      // Deselect nodes if clicking on background
-                      final RenderBox box =
-                          context.findRenderObject() as RenderBox;
-                      final localPosition = box.globalToLocal(
-                        details.globalPosition,
-                      );
-                      editorState.deselectAllNodes();
-                    },
-                    onTap: () => editorState.deselectAllNodes(),
-                    onTapUp: (details) {
-                      // Check for connection hits first
+                  child: MouseRegion(
+                    onHover: (event) {
+                      // check if we hover over a connection
                       final painter = ConnectionPainter(
                         editorState: editorState,
                       );
                       final RenderBox box =
                           context.findRenderObject() as RenderBox;
-                      final localPosition = box.globalToLocal(
-                        details.globalPosition,
-                      );
+                      final localPosition = event.localPosition;
                       final hitConnection = painter.getConnectionAtPoint(
                         editorState._screenToWorld(localPosition),
+                        reversed: true,
                       );
 
                       if (hitConnection != null) {
-                        editorState.removeConnection(hitConnection);
+                        editorState.setHoveredConnection(hitConnection);
                         return;
                       }
+                      editorState.setHoveredConnection(null);
+                    },
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      // Add right click handler
+                      onSecondaryTapUp: (details) {
+                        final RenderBox box =
+                            context.findRenderObject() as RenderBox;
+                        final localPosition = box.globalToLocal(
+                          details.globalPosition,
+                        );
+                        editorState.showContextMenu(localPosition);
+                      },
+                      onPanStart: (details) {
+                        _lastPanPosition = details.globalPosition;
+                        // Deselect nodes if clicking on background
+                        final RenderBox box =
+                            context.findRenderObject() as RenderBox;
+                        final localPosition = box.globalToLocal(
+                          details.globalPosition,
+                        );
+                        editorState.deselectAllNodes();
+                      },
+                      onTap: () => editorState.deselectAllNodes(),
+                      onTapUp: (details) {
+                        // Check for connection hits first
+                        final painter = ConnectionPainter(
+                          editorState: editorState,
+                        );
+                        final RenderBox box =
+                            context.findRenderObject() as RenderBox;
+                        final localPosition = box.globalToLocal(
+                          details.globalPosition,
+                        );
+                        final hitConnection = painter.getConnectionAtPoint(
+                          editorState._screenToWorld(localPosition),
+                        );
 
-                      editorState.deselectAllNodes();
-                      editorState.hideContextMenu();
-                    },
-                    onPanUpdate: (details) {
-                      final delta = details.globalPosition - _lastPanPosition;
-                      // Only pan if not dragging a node (node drag handled separately)
-                      // A bit simplified: Assumes if a node is selected, we might be dragging it.
-                      // A more robust check would involve tracking which element received the onPanStart.
-                      if (editorState.nodes
-                              .where((n) => n.isSelected)
-                              .isEmpty &&
-                          editorState.dragStartPinKey == null) {
-                        editorState.panCanvas(delta);
-                      }
-                      // Update connection drag position if active
-                      // else if (editorState.dragStartPinKey != null) {
-                      //   final RenderBox box = context.findRenderObject() as RenderBox;
-                      //   final localPosition = box.globalToLocal(
-                      //     details.globalPosition,
-                      //   );
-                      //   editorState.updateDraggingConnection(
-                      //     localPosition,
-                      //   ); // Use local position for drawing
-                      // }
-                      _lastPanPosition = details.globalPosition;
-                    },
-                    onPanEnd: (details) {
-                      // Finalize connection drag if active
-                      if (editorState.dragStartPinKey != null) {
-                        // We need to check if the pan ended over a valid pin
-                        // This requires hit-testing pins based on the final position.
-                        // For simplicity now, we just end the drag. A real implementation
-                        // needs to find the pin under the cursor here.
-                        editorState
-                            .endDraggingConnection(); // No end pin provided yet
-                      }
-                    },
-                    child: Container(
-                      color: Colors.amber,
-                      constraints: BoxConstraints.expand(),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Positioned(
-                            // clipBehavior: Clip.hardEdge,
-                            top: 0,
-                            left: 0,
-                            width: 4000,
-                            height: 4000,
-                            child: Transform(
-                              alignment: Alignment.topLeft,
-                              transformHitTests: true,
-                              transform:
-                                  Matrix4.identity()
-                                    ..scale(editorState.scale)
-                                    ..translate(
-                                      -editorState.canvasOffset.dx,
-                                      -editorState.canvasOffset.dy,
-                                    ),
-                              child: SizedBox(
-                                width: 4000,
-                                height: 4000,
-                                child: Stack(
-                                  clipBehavior:
-                                      Clip.none, // Allow nodes to be dragged partially off-screen
-                                  children: [
-                                    // Background Grid (Optional)
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: GridPainter(
-                                          editorState.canvasOffset,
-                                          editorState.scale,
+                        if (hitConnection != null) {
+                          editorState.removeConnection(hitConnection);
+                          return;
+                        }
+
+                        editorState.deselectAllNodes();
+                        editorState.hideContextMenu();
+                      },
+                      onPanUpdate: (details) {
+                        final delta = details.globalPosition - _lastPanPosition;
+                        // Only pan if not dragging a node (node drag handled separately)
+                        // A bit simplified: Assumes if a node is selected, we might be dragging it.
+                        // A more robust check would involve tracking which element received the onPanStart.
+                        if (editorState.nodes
+                                .where((n) => n.isSelected)
+                                .isEmpty &&
+                            editorState.dragStartPinKey == null) {
+                          editorState.panCanvas(delta);
+                        }
+                        // Update connection drag position if active
+                        // else if (editorState.dragStartPinKey != null) {
+                        //   final RenderBox box = context.findRenderObject() as RenderBox;
+                        //   final localPosition = box.globalToLocal(
+                        //     details.globalPosition,
+                        //   );
+                        //   editorState.updateDraggingConnection(
+                        //     localPosition,
+                        //   ); // Use local position for drawing
+                        // }
+                        _lastPanPosition = details.globalPosition;
+                      },
+                      onPanEnd: (details) {
+                        // Finalize connection drag if active
+                        if (editorState.dragStartPinKey != null) {
+                          // We need to check if the pan ended over a valid pin
+                          // This requires hit-testing pins based on the final position.
+                          // For simplicity now, we just end the drag. A real implementation
+                          // needs to find the pin under the cursor here.
+                          editorState
+                              .endDraggingConnection(); // No end pin provided yet
+                        }
+                      },
+                      child: Container(
+                        color: Colors.amber,
+                        constraints: BoxConstraints.expand(),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned(
+                              // clipBehavior: Clip.hardEdge,
+                              top: 0,
+                              left: 0,
+                              width: 4000,
+                              height: 4000,
+                              child: Transform(
+                                alignment: Alignment.topLeft,
+                                transformHitTests: true,
+                                transform:
+                                    Matrix4.identity()
+                                      ..scale(editorState.scale)
+                                      ..translate(
+                                        -editorState.canvasOffset.dx,
+                                        -editorState.canvasOffset.dy,
+                                      ),
+                                child: SizedBox(
+                                  width: 4000,
+                                  height: 4000,
+                                  child: Stack(
+                                    clipBehavior:
+                                        Clip.none, // Allow nodes to be dragged partially off-screen
+                                    children: [
+                                      // Background Grid (Optional)
+                                      Positioned.fill(
+                                        child: CustomPaint(
+                                          painter: GridPainter(
+                                            editorState.canvasOffset,
+                                            editorState.scale,
+                                          ),
                                         ),
                                       ),
-                                    ),
 
-                                    // Connection Lines Painter
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: ConnectionPainter(
-                                          editorState: editorState,
+                                      // Connection Lines Painter
+                                      Positioned.fill(
+                                        child: CustomPaint(
+                                          painter: ConnectionPainter(
+                                            editorState: editorState,
+                                          ),
                                         ),
                                       ),
-                                    ),
 
-                                    // Nodes
-                                    ...editorState.nodes.map(
-                                      (node) => Positioned(
-                                        key: ValueKey(
-                                          node.id,
-                                        ), // Important for stable updates
-                                        left: node.position.dx,
-                                        top: node.position.dy,
-                                        child: NodeWidget(
-                                          node: node,
-                                          editorState: editorState,
-                                          onDragUpdate:
-                                              (details) => _handleNodeDrag(
-                                                context,
-                                                details,
-                                                node.id,
-                                              ),
-                                          onDragEnd:
-                                              (details) =>
-                                                  _autoScrollTimer?.cancel(),
+                                      // Nodes
+                                      ...editorState.nodes.map(
+                                        (node) => Positioned(
+                                          key: ValueKey(
+                                            node.id,
+                                          ), // Important for stable updates
+                                          left: node.position.dx,
+                                          top: node.position.dy,
+                                          child: NodeWidget(
+                                            node: node,
+                                            editorState: editorState,
+                                            onDragUpdate:
+                                                (details) => _handleNodeDrag(
+                                                  context,
+                                                  details,
+                                                  node.id,
+                                                ),
+                                            onDragEnd:
+                                                (details) =>
+                                                    _autoScrollTimer?.cancel(),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          Text(
-                            "${editorState.canvasOffset}\nScale: ${editorState.scale}",
-                            style: TextStyle(color: Colors.black, fontSize: 40),
-                          ),
-                        ],
+                            Text(
+                              "${editorState.canvasOffset}\nScale: ${editorState.scale}",
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 40,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -989,7 +1022,13 @@ class ConnectionPainter extends CustomPainter {
   ConnectionPainter({required this.editorState}) : super(repaint: editorState);
 
   bool isPointNearCurve(Offset point, Path path) {
+    // Quick check to avoid unnecessary calculations
     const double hitTestPrecision = 10;
+    if (!path.getBounds().inflate(hitTestPrecision).contains(point)) {
+      return false;
+    }
+
+    var pathMetrics = path.computeMetrics();
     return path.contains(point) ||
         path.computeMetrics().any((metric) {
           // probe different x along metric.length
@@ -1005,8 +1044,12 @@ class ConnectionPainter extends CustomPainter {
         });
   }
 
-  Connection? getConnectionAtPoint(Offset point) {
-    for (final connection in editorState.connections) {
+  Connection? getConnectionAtPoint(Offset point, {bool reversed = false}) {
+    Iterable<Connection> connections = editorState.connections;
+    if (reversed) {
+      connections = editorState.connections.reversed;
+    }
+    for (final connection in connections) {
       if (connection.path != null &&
           isPointNearCurve(point, connection.path!)) {
         return connection;
@@ -1058,6 +1101,10 @@ class ConnectionPainter extends CustomPainter {
           case PinType.render:
             lineColor = Colors.purple;
             break;
+        }
+        // if connection is hovered, make color brighter
+        if (editorState.hoveredConnection == connection) {
+          lineColor = Color.lerp(lineColor, Colors.white, 0.3)!;
         }
 
         final paint =
