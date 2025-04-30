@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/src/gestures/events.dart';
 
@@ -496,6 +497,28 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                       editorState.deselectAllNodes();
                     },
                     onTap: () => editorState.deselectAllNodes(),
+                    onTapUp: (details) {
+                      // Check for connection hits first
+                      final painter = ConnectionPainter(
+                        editorState: editorState,
+                      );
+                      final RenderBox box =
+                          context.findRenderObject() as RenderBox;
+                      final localPosition = box.globalToLocal(
+                        details.globalPosition,
+                      );
+                      final hitConnection = painter.getConnectionAtPoint(
+                        editorState._screenToWorld(localPosition),
+                      );
+
+                      if (hitConnection != null) {
+                        editorState.removeConnection(hitConnection);
+                        return;
+                      }
+
+                      editorState.deselectAllNodes();
+                      editorState.hideContextMenu();
+                    },
                     onPanUpdate: (details) {
                       final delta = details.globalPosition - _lastPanPosition;
                       // Only pan if not dragging a node (node drag handled separately)
@@ -964,6 +987,38 @@ class ConnectionPainter extends CustomPainter {
   final BlueprintEditorState editorState;
 
   ConnectionPainter({required this.editorState}) : super(repaint: editorState);
+
+  bool isPointNearCurve(Offset point, Path path) {
+    const double hitTestPrecision = 10;
+    return path.contains(point) ||
+        path.computeMetrics().any((metric) {
+          // probe different x along metric.length
+          for (double i = 0; i < metric.length; i += hitTestPrecision) {
+            var tangent = metric.getTangentForOffset(i);
+            if (tangent == null) continue;
+            var delta = tangent.position - point;
+            if (delta.distanceSquared < hitTestPrecision * hitTestPrecision) {
+              return true;
+            }
+          }
+          return false;
+        });
+  }
+
+  Connection? getConnectionAtPoint(Offset point) {
+    for (final connection in editorState.connections) {
+      if (connection.path != null &&
+          isPointNearCurve(point, connection.path!)) {
+        return connection;
+      }
+    }
+    return null;
+  }
+
+  // @override
+  // bool? hitTest(Offset position) {
+  //   return getConnectionAtPoint(position) != null;
+  // }
 
   @override
   void paint(Canvas canvas, Size size) {
