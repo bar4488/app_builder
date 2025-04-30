@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/src/gestures/events.dart';
 
@@ -120,6 +121,7 @@ class BlueprintEditorState extends ChangeNotifier {
   final List<Node> _nodes = [];
   final Set<Connection> _connections = {};
   Offset _canvasOffset = Offset.zero; // For panning
+  double _scale = 1.0; // For zooming
 
   // For drawing temporary connection line
   Offset? _dragStartPinPosition;
@@ -130,6 +132,7 @@ class BlueprintEditorState extends ChangeNotifier {
   List<Node> get nodes => _nodes;
   Set<Connection> get connections => _connections;
   Offset get canvasOffset => _canvasOffset;
+  double get scale => _scale;
 
   Offset? get dragStartPinPosition => _dragStartPinPosition;
   Offset? get dragCurrentPosition => _dragCurrentPosition;
@@ -227,7 +230,7 @@ class BlueprintEditorState extends ChangeNotifier {
 
   // --- Canvas Management ---
   void panCanvas(Offset delta) {
-    _canvasOffset += delta;
+    _canvasOffset -= delta / _scale;
     notifyListeners();
   }
 
@@ -284,6 +287,7 @@ class BlueprintEditorState extends ChangeNotifier {
                 : endPinKey;
 
         _connections.removeWhere((conn) => conn.endPinKey == inputPinKey);
+        print("Adding connection: $outputPinKey -> $inputPinKey");
         _connections.add(
           Connection(startPinKey: outputPinKey, endPinKey: inputPinKey),
         );
@@ -344,6 +348,19 @@ class BlueprintEditorState extends ChangeNotifier {
     }
     return null;
   }
+
+  void handleScrollZoom(Offset mousePos, double scrollDelta) {
+    final worldPos = _screenToWorld(mousePos);
+    final factor = scrollDelta < 0 ? 1.1 : 0.9;
+    final newScale = (scale * factor).clamp(0.25, 4.0);
+    _scale = newScale;
+    _canvasOffset = worldPos - mousePos / scale;
+    notifyListeners();
+  }
+
+  Offset _screenToWorld(Offset screen) => screen / scale + canvasOffset;
+
+  Offset _worldToScreen(Offset world) => (world - canvasOffset) * scale;
 }
 
 // --- Main Application Widget ---
@@ -381,133 +398,68 @@ class BlueprintEditorPage extends StatefulWidget {
 class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
   final BlueprintEditorState editorState = BlueprintEditorState();
   Offset _lastPanPosition = Offset.zero;
-
-  double _scale = 1.0; // For calculating pan delta
+  Timer? _autoScrollTimer;
 
   @override
-  void initState() {
-    super.initState();
-    // Add some initial nodes for demonstration
-    editorState.addNode(
-      Node(
-        id: 'node1',
-        title: 'Start Event',
-        position: const Offset(100, 100),
-        outputPins: [
-          Pin(
-            nodeId: 'node1',
-            label: 'Exec Out',
-            direction: PinDirection.output,
-            type: PinType.exec,
-          ),
-        ],
-      ),
-    );
-    editorState.addNode(
-      Node(
-        id: 'node2',
-        title: 'Do Something',
-        position: const Offset(400, 150),
-        size: const Size(180, 120), // Different size
-        inputPins: [
-          Pin(
-            nodeId: 'node2',
-            label: 'Exec In',
-            direction: PinDirection.input,
-            type: PinType.exec,
-          ),
-        ],
-        outputPins: [
-          Pin(
-            nodeId: 'node2',
-            label: 'Exec Out',
-            direction: PinDirection.output,
-            type: PinType.exec,
-          ),
-          Pin(
-            nodeId: 'node2',
-            label: 'Value',
-            direction: PinDirection.output,
-            type: PinType.value,
-          ),
-        ],
-      ),
-    );
-    editorState.addNode(
-      Node(
-        id: 'node3',
-        title: 'Branch',
-        position: const Offset(700, 100),
-        size: const Size(180, 150), // Different size
-        inputPins: [
-          Pin(
-            nodeId: 'node3',
-            label: 'Exec In',
-            direction: PinDirection.input,
-            type: PinType.exec,
-          ),
-          Pin(
-            nodeId: 'node3',
-            label: 'Condition',
-            direction: PinDirection.input,
-            type: PinType.value,
-          ),
-        ],
-        outputPins: [
-          Pin(
-            nodeId: 'node3',
-            label: 'True',
-            direction: PinDirection.output,
-            type: PinType.exec,
-          ),
-          Pin(
-            nodeId: 'node3',
-            label: 'False',
-            direction: PinDirection.output,
-            type: PinType.exec,
-          ),
-        ],
-      ),
+  void dispose() {
+    _autoScrollTimer?.cancel();
+    super.dispose();
+  }
+
+  void _handleNodeDrag(
+    BuildContext context,
+    DragUpdateDetails details,
+    String nodeId,
+  ) {
+    final RenderBox box = context.findRenderObject() as RenderBox;
+    final Size size = box.size;
+    final Offset position = details.globalPosition;
+    const scrollArea = 60.0; // pixels from edge that triggers scrolling
+    const scrollSpeed = 15.0; // pixels per scroll
+
+    Offset scrollDelta = Offset.zero;
+
+    // Check edges and calculate scroll delta
+    if (position.dx < scrollArea) {
+      scrollDelta += const Offset(scrollSpeed, 0);
+    } else if (position.dx > size.width - scrollArea) {
+      scrollDelta += const Offset(-scrollSpeed, 0);
+    }
+
+    if (position.dy < scrollArea) {
+      scrollDelta += const Offset(0, scrollSpeed);
+    } else if (position.dy > size.height - scrollArea) {
+      scrollDelta += const Offset(0, -scrollSpeed);
+    }
+
+    // If we're near an edge, start auto-scrolling
+    if (scrollDelta != Offset.zero) {
+      _autoScrollTimer?.cancel();
+      _autoScrollTimer = Timer.periodic(const Duration(milliseconds: 16), (
+        timer,
+      ) {
+        editorState.panCanvas(scrollDelta);
+        // Also move the node to maintain relative position
+        editorState.moveNode(nodeId, -scrollDelta);
+        print(
+          "Auto-scrolling: $scrollDelta, new node position: ${editorState.findNodeById(nodeId)?.position}",
+        );
+      });
+    } else {
+      _autoScrollTimer?.cancel();
+    }
+
+    // Move the node with the drag
+    editorState.moveNode(nodeId, details.delta);
+    print(
+      "moving, new node position: ${editorState.findNodeById(nodeId)?.position}",
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Blueprint Editor'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'Add Node (Example)',
-            onPressed: () {
-              final newNodeId = 'node${editorState.nodes.length + 1}';
-              editorState.addNode(
-                Node(
-                  id: newNodeId,
-                  title: 'New Node ${editorState.nodes.length + 1}',
-                  // Place near center of viewport, accounting for pan
-                  position: -editorState.canvasOffset + const Offset(200, 200),
-                  inputPins: [
-                    Pin(
-                      nodeId: newNodeId,
-                      label: 'In',
-                      direction: PinDirection.input,
-                      type: PinType.value,
-                    ),
-                  ],
-                  outputPins: [
-                    Pin(
-                      nodeId: newNodeId,
-                      label: 'Out',
-                      direction: PinDirection.output,
-                      type: PinType.exec,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+      appBar: AppBar(title: const Text('Blueprint Editor'), actions: [
         ],
       ),
       body: ListenableBuilder(
@@ -541,22 +493,9 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                       final localPosition = box.globalToLocal(
                         details.globalPosition,
                       );
-                      bool hitNode = false;
-                      // Check if click hit any node
-                      for (final node in editorState.nodes) {
-                        final nodeRect = node.rect.translate(
-                          editorState.canvasOffset.dx,
-                          editorState.canvasOffset.dy,
-                        );
-                        if (nodeRect.contains(localPosition)) {
-                          hitNode = true;
-                          break;
-                        }
-                      }
-                      if (!hitNode) {
-                        editorState.deselectAllNodes();
-                      }
+                      editorState.deselectAllNodes();
                     },
+                    onTap: () => editorState.deselectAllNodes(),
                     onPanUpdate: (details) {
                       final delta = details.globalPosition - _lastPanPosition;
                       // Only pan if not dragging a node (node drag handled separately)
@@ -608,11 +547,11 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                               transformHitTests: true,
                               transform:
                                   Matrix4.identity()
+                                    ..scale(editorState.scale)
                                     ..translate(
-                                      editorState.canvasOffset.dx,
-                                      editorState.canvasOffset.dy,
-                                    )
-                                    ..scale(_scale),
+                                      -editorState.canvasOffset.dx,
+                                      -editorState.canvasOffset.dy,
+                                    ),
                               child: SizedBox(
                                 width: 4000,
                                 height: 4000,
@@ -625,7 +564,7 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                                       child: CustomPaint(
                                         painter: GridPainter(
                                           editorState.canvasOffset,
-                                          _scale,
+                                          editorState.scale,
                                         ),
                                       ),
                                     ),
@@ -650,6 +589,15 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                                         child: NodeWidget(
                                           node: node,
                                           editorState: editorState,
+                                          onDragUpdate:
+                                              (details) => _handleNodeDrag(
+                                                context,
+                                                details,
+                                                node.id,
+                                              ),
+                                          onDragEnd:
+                                              (details) =>
+                                                  _autoScrollTimer?.cancel(),
                                         ),
                                       ),
                                     ),
@@ -659,7 +607,7 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                             ),
                           ),
                           Text(
-                            "${editorState.canvasOffset}\nScale: ${_scale}",
+                            "${editorState.canvasOffset}\nScale: ${editorState.scale}",
                             style: TextStyle(color: Colors.black, fontSize: 40),
                           ),
                         ],
@@ -682,7 +630,7 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                           final newNodeId =
                               'node${editorState.nodes.length + 1}';
                           // Convert screen position to world position
-                          final worldPos = _screenToWorld(
+                          final worldPos = editorState._screenToWorld(
                             editorState.contextMenuPosition!,
                           );
                           editorState.addNode(
@@ -695,6 +643,12 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                                   nodeId: newNodeId,
                                   label: 'In',
                                   direction: PinDirection.input,
+                                  type: PinType.exec,
+                                ),
+                                Pin(
+                                  nodeId: newNodeId,
+                                  label: 'In2',
+                                  direction: PinDirection.input,
                                   type: PinType.value,
                                 ),
                               ],
@@ -704,6 +658,12 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                                   label: 'Out',
                                   direction: PinDirection.output,
                                   type: PinType.exec,
+                                ),
+                                Pin(
+                                  nodeId: newNodeId,
+                                  label: 'Out2',
+                                  direction: PinDirection.output,
+                                  type: PinType.value,
                                 ),
                               ],
                             ),
@@ -724,20 +684,8 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
   void _handleScrollZoom(PointerSignalEvent e) {
     if (e is! PointerScrollEvent) return;
     final mousePos = e.localPosition;
-    final worldPos = _screenToWorld(mousePos);
-    final factor = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
-    final newScale = (_scale * factor).clamp(0.25, 4.0);
-    setState(() {
-      _scale = newScale;
-      editorState._canvasOffset = mousePos - worldPos * _scale;
-    });
+    editorState.handleScrollZoom(mousePos, e.scrollDelta.dy);
   }
-
-  Offset _screenToWorld(Offset screen) =>
-      (screen - editorState._canvasOffset) / _scale;
-
-  Offset _worldToScreen(Offset world) =>
-      (world * _scale) + editorState._canvasOffset;
 }
 
 // --- Node Widget ---
@@ -745,8 +693,16 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
 class NodeWidget extends StatelessWidget {
   final Node node;
   final BlueprintEditorState editorState;
+  final Function(DragUpdateDetails) onDragUpdate;
+  final Function(DragEndDetails)? onDragEnd;
 
-  const NodeWidget({super.key, required this.node, required this.editorState});
+  const NodeWidget({
+    super.key,
+    required this.node,
+    required this.editorState,
+    required this.onDragUpdate,
+    this.onDragEnd,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -771,10 +727,8 @@ class NodeWidget extends StatelessWidget {
                 multiSelect: false,
               ); // Basic single selection
             },
-            onPanUpdate: (details) {
-              // Move the selected node
-              editorState.moveNode(node.id, details.delta);
-            },
+            onPanUpdate: onDragUpdate,
+            onPanEnd: onDragEnd,
             child: Material(
               elevation: node.isSelected ? 8.0 : 4.0,
               borderRadius: BorderRadius.circular(8.0),
@@ -1214,7 +1168,7 @@ class GridPainter extends CustomPainter {
   }
 
   // screen to world
-  Offset _screenToWorld(Offset screen) => (screen - offset) / scale;
+  Offset _screenToWorld(Offset screen) => screen / scale + offset;
 
   @override
   bool shouldRepaint(covariant GridPainter oldDelegate) {
