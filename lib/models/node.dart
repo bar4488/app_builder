@@ -4,46 +4,47 @@ import 'pin.dart';
 // Represents a node in the blueprint editor
 class Node {
   final String id;
-  final String type;
-  final List<Pin> pins;
-  Offset position;
-  Size size;
+  String title;
+  Offset position; // Top-left position on the canvas
+  Size size; // Size of the node widget
+  final List<Pin> inputPins;
+  final List<Pin> outputPins;
+  bool isSelected;
 
   Node({
     required this.id,
-    required this.type,
-    required this.pins,
-    this.position = Offset.zero,
-    this.size = const Size(150, 100),
-  });
+    required this.title,
+    required this.position,
+    this.size = const Size(180, 100), // Default size
+    List<Pin>? inputPins,
+    List<Pin>? outputPins,
+    this.isSelected = false,
+  })  : inputPins = inputPins ?? [],
+        outputPins = outputPins ?? [];
 
-  List<Pin> get inputPins =>
-      pins.where((p) => p.direction == PinDirection.input).toList();
-  List<Pin> get outputPins =>
-      pins.where((p) => p.direction == PinDirection.output).toList();
+  // Helper to get all pins
+  List<Pin> get allPins => [...inputPins, ...outputPins];
 
-  void updatePinPositions() {
-    final inputCount = inputPins.length;
-    final outputCount = outputPins.length;
-    final maxCount = inputCount > outputCount ? inputCount : outputCount;
-    final spacing = maxCount <= 1 ? 0.0 : size.height / (maxCount - 1);
+  // Calculate pin positions based on node size (simple vertical layout)
+  void calculatePinPositions() {
+    const double pinSpacing = 30.0;
+    const double initialOffset = 40.0; // Offset from top
+    const double pinRadius = 6.0; // To center the pin vertically
 
-    // Position input pins on the left
-    for (var i = 0; i < inputPins.length; i++) {
-      inputPins[i].relativePosition = Offset(0, i * spacing);
+    for (int i = 0; i < inputPins.length; i++) {
+      inputPins[i].relativePosition = Offset(
+        0,
+        initialOffset + i * pinSpacing - pinRadius,
+      );
     }
-
-    // Position output pins on the right
-    for (var i = 0; i < outputPins.length; i++) {
-      outputPins[i].relativePosition = Offset(size.width, i * spacing);
+    for (int i = 0; i < outputPins.length; i++) {
+      outputPins[i].relativePosition = Offset(
+        size.width,
+        initialOffset + i * pinSpacing - pinRadius,
+      );
     }
   }
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Node && runtimeType == other.runtimeType && id == other.id;
-
-  @override
-  int get hashCode => id.hashCode;
+  Rect get rect =>
+      Rect.fromLTWH(position.dx, position.dy, size.width, size.height);
 }
