@@ -20,7 +20,10 @@ class Node {
     List<Pin>? outputPins,
     this.isSelected = false,
   })  : inputPins = inputPins ?? [],
-        outputPins = outputPins ?? [];
+        outputPins = outputPins ?? [] {
+    // Initialize pin positions
+    calculatePinPositions();
+  }
 
   // Helper to get all pins
   List<Pin> get allPins => [...inputPins, ...outputPins];

@@ -109,6 +109,20 @@ class NodeWidget extends StatelessWidget {
             child: PinWidget(pin: pin),
           ),
         ),
+        // Input Pins labels:
+        ...node.inputPins.map(
+          (pin) => Positioned(
+            left: padding + 6 + 2, // Center the pin visually
+            top: padding + pin.relativePosition.dy - 2,
+            child: Text(
+              pin.label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
         // Output Pins
         ...node.outputPins.map(
           (pin) => Positioned(
@@ -117,6 +131,21 @@ class NodeWidget extends StatelessWidget {
                 6, // Center the pin visually
             top: padding + pin.relativePosition.dy,
             child: PinWidget(pin: pin),
+          ),
+        ),
+        // Output Pins labels:
+        ...node.outputPins.map(
+          (pin) => Positioned(
+            right: padding + 6 + 2, // Center the pin visually
+            top: padding + pin.relativePosition.dy - 2,
+            child: Text(
+              pin.label,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.white,
+                textBaseline: TextBaseline.alphabetic,
+              ),
+            ),
           ),
         ),
       ],

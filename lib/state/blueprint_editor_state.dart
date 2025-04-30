@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:unreal_editor/state/blueprint_state.dart';
 import '../models/node.dart';
 import '../models/pin.dart';
 import '../models/connection.dart';
@@ -6,8 +7,7 @@ import '../models/connection.dart';
 // --- ChangeNotifier for State Management ---
 
 class BlueprintEditorState extends ChangeNotifier {
-  final List<Node> _nodes = [];
-  final List<Connection> _connections = [];
+  final BlueprintState _blueprintState = BlueprintState();
   Offset _canvasOffset = Offset.zero; // For panning
   double _scale = 1.0; // For zooming
 
@@ -17,8 +17,8 @@ class BlueprintEditorState extends ChangeNotifier {
   PinKey? _dragStartPinKey;
   PinDirection? dragStartPinDirection;
 
-  List<Node> get nodes => _nodes;
-  List<Connection> get connections => _connections;
+  List<Node> get nodes => _blueprintState.nodes;
+  List<Connection> get connections => _blueprintState.connections;
   Offset get canvasOffset => _canvasOffset;
   double get scale => _scale;
 
@@ -58,14 +58,14 @@ class BlueprintEditorState extends ChangeNotifier {
   // --- Node Management ---
   void addNode(Node node) {
     node.calculatePinPositions(); // Calculate pin positions when adding
-    _nodes.add(node);
+    nodes.add(node);
     notifyListeners();
   }
 
   void deleteNode(String nodeId) {
-    _nodes.removeWhere((node) => node.id == nodeId);
+    nodes.removeWhere((node) => node.id == nodeId);
     // Remove connections associated with the deleted node
-    _connections.removeWhere(
+    connections.removeWhere(
       (conn) =>
           conn.startPinKey.value.startsWith(nodeId) ||
           conn.endPinKey.value.startsWith(nodeId),
@@ -87,7 +87,7 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void moveNode(String nodeId, Offset delta) {
-    final node = _nodes.firstWhere(
+    final node = nodes.firstWhere(
       (n) => n.id == nodeId,
       orElse: () => throw Exception("Node not found"),
     );
@@ -102,11 +102,11 @@ class BlueprintEditorState extends ChangeNotifier {
 
   void selectNode(String nodeId, {bool multiSelect = false}) {
     if (!multiSelect) {
-      for (var node in _nodes) {
+      for (var node in nodes) {
         node.isSelected = false;
       }
     }
-    final node = _nodes.firstWhere(
+    final node = nodes.firstWhere(
       (n) => n.id == nodeId,
       orElse: () => throw Exception("Node not found"),
     );
@@ -116,7 +116,7 @@ class BlueprintEditorState extends ChangeNotifier {
 
   void deselectAllNodes() {
     bool changed = false;
-    for (var node in _nodes) {
+    for (var node in nodes) {
       if (node.isSelected) {
         node.isSelected = false;
         changed = true;
@@ -181,9 +181,9 @@ class BlueprintEditorState extends ChangeNotifier {
             ? _dragStartPinKey!
             : endPinKey;
 
-        _connections.removeWhere((conn) => conn.endPinKey == inputPinKey);
+        connections.removeWhere((conn) => conn.endPinKey == inputPinKey);
         print("Adding connection: $outputPinKey -> $inputPinKey");
-        _connections.add(
+        connections.add(
           Connection(startPinKey: outputPinKey, endPinKey: inputPinKey),
         );
       }
@@ -197,12 +197,12 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void removeConnection(Connection connection) {
-    _connections.remove(connection);
+    connections.remove(connection);
     notifyListeners();
   }
 
   void removeConnectionsForPin(PinKey pinKey) {
-    _connections.removeWhere(
+    connections.removeWhere(
       (conn) => conn.startPinKey == pinKey || conn.endPinKey == pinKey,
     );
     notifyListeners();
@@ -211,14 +211,14 @@ class BlueprintEditorState extends ChangeNotifier {
   // --- Helpers ---
   Node? findNodeById(String id) {
     try {
-      return _nodes.firstWhere((node) => node.id == id);
+      return nodes.firstWhere((node) => node.id == id);
     } catch (e) {
       return null;
     }
   }
 
   Pin? findPinByKey(PinKey key) {
-    for (var node in _nodes) {
+    for (var node in nodes) {
       for (var pin in node.allPins) {
         if (pin.key == key) {
           return pin;
