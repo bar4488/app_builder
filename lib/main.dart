@@ -6,6 +6,13 @@ import 'package:flutter/src/gestures/events.dart';
 // Enum to define pin direction
 enum PinDirection { input, output }
 
+// Add Pin Type enum
+enum PinType {
+  exec, // Flow control
+  value, // Data values
+  render, // Visual/render data
+}
+
 // Unique key for identifying pins
 class PinKey extends ValueKey<String> {
   const PinKey(String value) : super(value);
@@ -36,15 +43,19 @@ class Connection {
 
 // Represents a connection pin on a node
 class Pin {
-  final PinKey key; // Unique identifier for the pin
-  final String nodeId; // ID of the node this pin belongs to
+  final PinKey key;
+  final String nodeId;
   final String label;
   final PinDirection direction;
-  // Store the pin's center position relative to the node's origin (top-left)
+  final PinType type; // Add pin type
   Offset relativePosition = Offset.zero;
 
-  Pin({required this.nodeId, required this.label, required this.direction})
-    : key = PinKey('${nodeId}_${label}_${direction.name}');
+  Pin({
+    required this.nodeId,
+    required this.label,
+    required this.direction,
+    required this.type,
+  }) : key = PinKey('${nodeId}_${label}_${direction.name}');
 
   @override
   bool operator ==(Object other) =>
@@ -127,6 +138,20 @@ class BlueprintEditorState extends ChangeNotifier {
   PinKey? _currentHoverPinKey;
   PinKey? get currentHoverPinKey => _currentHoverPinKey;
 
+  // Add these properties for context menu
+  Offset? _contextMenuPosition;
+  Offset? get contextMenuPosition => _contextMenuPosition;
+
+  void showContextMenu(Offset position) {
+    _contextMenuPosition = position;
+    notifyListeners();
+  }
+
+  void hideContextMenu() {
+    _contextMenuPosition = null;
+    notifyListeners();
+  }
+
   // --- Node Management ---
   void addNode(Node node) {
     node.calculatePinPositions(); // Calculate pin positions when adding
@@ -150,13 +175,29 @@ class BlueprintEditorState extends ChangeNotifier {
     notifyListeners();
   }
 
+  static const double stackWidth = 4000.0;
+  static const double stackHeight = 4000.0;
+
+  // Add helper method to constrain position
+  Offset _constrainPosition(Offset position, Size nodeSize) {
+    return Offset(
+      position.dx.clamp(0, stackWidth - nodeSize.width),
+      position.dy.clamp(0, stackHeight - nodeSize.height),
+    );
+  }
+
   void moveNode(String nodeId, Offset delta) {
     final node = _nodes.firstWhere(
       (n) => n.id == nodeId,
       orElse: () => throw Exception("Node not found"),
     );
-    node.position += delta;
-    notifyListeners();
+
+    // Calculate new position and constrain it
+    final newPosition = _constrainPosition(node.position + delta, node.size);
+    if (newPosition != node.position) {
+      node.position = newPosition;
+      notifyListeners();
+    }
   }
 
   void selectNode(String nodeId, {bool multiSelect = false}) {
@@ -223,13 +264,15 @@ class BlueprintEditorState extends ChangeNotifier {
     if (_dragStartPinKey != null &&
         endPinKey != null &&
         _dragStartPinKey != endPinKey) {
-      // Ensure connection is between opposite pin types (output -> input)
+      // Get both pins
       var startPin = findPinByKey(_dragStartPinKey!);
       var endPin = findPinByKey(endPinKey);
 
       if (startPin != null &&
           endPin != null &&
-          startPin.direction != endPin.direction) {
+          startPin.direction != endPin.direction &&
+          startPin.type == endPin.type) {
+        // Add type check
         // Determine correct start/end based on direction
         final outputPinKey =
             (startPin.direction == PinDirection.output)
@@ -240,9 +283,7 @@ class BlueprintEditorState extends ChangeNotifier {
                 ? _dragStartPinKey!
                 : endPinKey;
 
-        // Ensure input pins only accept one connection (optional rule)
         _connections.removeWhere((conn) => conn.endPinKey == inputPinKey);
-
         _connections.add(
           Connection(startPinKey: outputPinKey, endPinKey: inputPinKey),
         );
@@ -258,6 +299,13 @@ class BlueprintEditorState extends ChangeNotifier {
 
   void removeConnection(Connection connection) {
     _connections.remove(connection);
+    notifyListeners();
+  }
+
+  void removeConnectionsForPin(PinKey pinKey) {
+    _connections.removeWhere(
+      (conn) => conn.startPinKey == pinKey || conn.endPinKey == pinKey,
+    );
     notifyListeners();
   }
 
@@ -350,6 +398,7 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
             nodeId: 'node1',
             label: 'Exec Out',
             direction: PinDirection.output,
+            type: PinType.exec,
           ),
         ],
       ),
@@ -361,15 +410,26 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
         position: const Offset(400, 150),
         size: const Size(180, 120), // Different size
         inputPins: [
-          Pin(nodeId: 'node2', label: 'Exec In', direction: PinDirection.input),
+          Pin(
+            nodeId: 'node2',
+            label: 'Exec In',
+            direction: PinDirection.input,
+            type: PinType.exec,
+          ),
         ],
         outputPins: [
           Pin(
             nodeId: 'node2',
             label: 'Exec Out',
             direction: PinDirection.output,
+            type: PinType.exec,
           ),
-          Pin(nodeId: 'node2', label: 'Value', direction: PinDirection.output),
+          Pin(
+            nodeId: 'node2',
+            label: 'Value',
+            direction: PinDirection.output,
+            type: PinType.value,
+          ),
         ],
       ),
     );
@@ -380,16 +440,32 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
         position: const Offset(700, 100),
         size: const Size(180, 150), // Different size
         inputPins: [
-          Pin(nodeId: 'node3', label: 'Exec In', direction: PinDirection.input),
+          Pin(
+            nodeId: 'node3',
+            label: 'Exec In',
+            direction: PinDirection.input,
+            type: PinType.exec,
+          ),
           Pin(
             nodeId: 'node3',
             label: 'Condition',
             direction: PinDirection.input,
+            type: PinType.value,
           ),
         ],
         outputPins: [
-          Pin(nodeId: 'node3', label: 'True', direction: PinDirection.output),
-          Pin(nodeId: 'node3', label: 'False', direction: PinDirection.output),
+          Pin(
+            nodeId: 'node3',
+            label: 'True',
+            direction: PinDirection.output,
+            type: PinType.exec,
+          ),
+          Pin(
+            nodeId: 'node3',
+            label: 'False',
+            direction: PinDirection.output,
+            type: PinType.exec,
+          ),
         ],
       ),
     );
@@ -417,6 +493,7 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                       nodeId: newNodeId,
                       label: 'In',
                       direction: PinDirection.input,
+                      type: PinType.value,
                     ),
                   ],
                   outputPins: [
@@ -424,6 +501,7 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
                       nodeId: newNodeId,
                       label: 'Out',
                       direction: PinDirection.output,
+                      type: PinType.exec,
                     ),
                   ],
                 ),
@@ -435,137 +513,207 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
       body: ListenableBuilder(
         listenable: editorState,
         builder: (context, child) {
-          return Listener(
-            onPointerSignal: _handleScrollZoom,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onPanStart: (details) {
-                _lastPanPosition = details.globalPosition;
-                // Deselect nodes if clicking on background
-                final RenderBox box = context.findRenderObject() as RenderBox;
-                final localPosition = box.globalToLocal(details.globalPosition);
-                bool hitNode = false;
-                // Check if click hit any node
-                for (final node in editorState.nodes) {
-                  final nodeRect = node.rect.translate(
-                    editorState.canvasOffset.dx,
-                    editorState.canvasOffset.dy,
-                  );
-                  if (nodeRect.contains(localPosition)) {
-                    hitNode = true;
-                    break;
-                  }
-                }
-                if (!hitNode) {
-                  editorState.deselectAllNodes();
-                }
-              },
-              onPanUpdate: (details) {
-                final delta = details.globalPosition - _lastPanPosition;
-                // Only pan if not dragging a node (node drag handled separately)
-                // A bit simplified: Assumes if a node is selected, we might be dragging it.
-                // A more robust check would involve tracking which element received the onPanStart.
-                if (editorState.nodes.where((n) => n.isSelected).isEmpty &&
-                    editorState.dragStartPinKey == null) {
-                  editorState.panCanvas(delta);
-                }
-                // Update connection drag position if active
-                // else if (editorState.dragStartPinKey != null) {
-                //   final RenderBox box = context.findRenderObject() as RenderBox;
-                //   final localPosition = box.globalToLocal(
-                //     details.globalPosition,
-                //   );
-                //   editorState.updateDraggingConnection(
-                //     localPosition,
-                //   ); // Use local position for drawing
-                // }
-                _lastPanPosition = details.globalPosition;
-              },
-              onPanEnd: (details) {
-                // Finalize connection drag if active
-                if (editorState.dragStartPinKey != null) {
-                  // We need to check if the pan ended over a valid pin
-                  // This requires hit-testing pins based on the final position.
-                  // For simplicity now, we just end the drag. A real implementation
-                  // needs to find the pin under the cursor here.
-                  editorState
-                      .endDraggingConnection(); // No end pin provided yet
-                }
-              },
-              child: Container(
-                color: Colors.amber,
-                constraints: BoxConstraints.expand(),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      // clipBehavior: Clip.hardEdge,
-                      top: 0,
-                      left: 0,
-                      width: 4000,
-                      height: 4000,
-                      child: Transform(
-                        alignment: Alignment.topLeft,
-                        transformHitTests: true,
-                        transform:
-                            Matrix4.identity()
-                              ..translate(
-                                editorState.canvasOffset.dx,
-                                editorState.canvasOffset.dy,
-                              )
-                              ..scale(_scale),
-                        child: SizedBox(
-                          width: 4000,
-                          height: 4000,
-                          child: Stack(
-                            clipBehavior:
-                                Clip.none, // Allow nodes to be dragged partially off-screen
-                            children: [
-                              // Background Grid (Optional)
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: GridPainter(
-                                    editorState.canvasOffset,
-                                    _scale,
-                                  ),
-                                ),
-                              ),
+          return GestureDetector(
+            // Add outer GestureDetector
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (_) => editorState.hideContextMenu(),
+            onPanStart: (_) => editorState.hideContextMenu(),
+            child: Stack(
+              children: [
+                Listener(
+                  onPointerSignal: _handleScrollZoom,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    // Add right click handler
+                    onSecondaryTapUp: (details) {
+                      final RenderBox box =
+                          context.findRenderObject() as RenderBox;
+                      final localPosition = box.globalToLocal(
+                        details.globalPosition,
+                      );
+                      editorState.showContextMenu(localPosition);
+                    },
+                    onPanStart: (details) {
+                      _lastPanPosition = details.globalPosition;
+                      // Deselect nodes if clicking on background
+                      final RenderBox box =
+                          context.findRenderObject() as RenderBox;
+                      final localPosition = box.globalToLocal(
+                        details.globalPosition,
+                      );
+                      bool hitNode = false;
+                      // Check if click hit any node
+                      for (final node in editorState.nodes) {
+                        final nodeRect = node.rect.translate(
+                          editorState.canvasOffset.dx,
+                          editorState.canvasOffset.dy,
+                        );
+                        if (nodeRect.contains(localPosition)) {
+                          hitNode = true;
+                          break;
+                        }
+                      }
+                      if (!hitNode) {
+                        editorState.deselectAllNodes();
+                      }
+                    },
+                    onPanUpdate: (details) {
+                      final delta = details.globalPosition - _lastPanPosition;
+                      // Only pan if not dragging a node (node drag handled separately)
+                      // A bit simplified: Assumes if a node is selected, we might be dragging it.
+                      // A more robust check would involve tracking which element received the onPanStart.
+                      if (editorState.nodes
+                              .where((n) => n.isSelected)
+                              .isEmpty &&
+                          editorState.dragStartPinKey == null) {
+                        editorState.panCanvas(delta);
+                      }
+                      // Update connection drag position if active
+                      // else if (editorState.dragStartPinKey != null) {
+                      //   final RenderBox box = context.findRenderObject() as RenderBox;
+                      //   final localPosition = box.globalToLocal(
+                      //     details.globalPosition,
+                      //   );
+                      //   editorState.updateDraggingConnection(
+                      //     localPosition,
+                      //   ); // Use local position for drawing
+                      // }
+                      _lastPanPosition = details.globalPosition;
+                    },
+                    onPanEnd: (details) {
+                      // Finalize connection drag if active
+                      if (editorState.dragStartPinKey != null) {
+                        // We need to check if the pan ended over a valid pin
+                        // This requires hit-testing pins based on the final position.
+                        // For simplicity now, we just end the drag. A real implementation
+                        // needs to find the pin under the cursor here.
+                        editorState
+                            .endDraggingConnection(); // No end pin provided yet
+                      }
+                    },
+                    child: Container(
+                      color: Colors.amber,
+                      constraints: BoxConstraints.expand(),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            // clipBehavior: Clip.hardEdge,
+                            top: 0,
+                            left: 0,
+                            width: 4000,
+                            height: 4000,
+                            child: Transform(
+                              alignment: Alignment.topLeft,
+                              transformHitTests: true,
+                              transform:
+                                  Matrix4.identity()
+                                    ..translate(
+                                      editorState.canvasOffset.dx,
+                                      editorState.canvasOffset.dy,
+                                    )
+                                    ..scale(_scale),
+                              child: SizedBox(
+                                width: 4000,
+                                height: 4000,
+                                child: Stack(
+                                  clipBehavior:
+                                      Clip.none, // Allow nodes to be dragged partially off-screen
+                                  children: [
+                                    // Background Grid (Optional)
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: GridPainter(
+                                          editorState.canvasOffset,
+                                          _scale,
+                                        ),
+                                      ),
+                                    ),
 
-                              // Connection Lines Painter
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: ConnectionPainter(
-                                    editorState: editorState,
-                                  ),
-                                ),
-                              ),
+                                    // Connection Lines Painter
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: ConnectionPainter(
+                                          editorState: editorState,
+                                        ),
+                                      ),
+                                    ),
 
-                              // Nodes
-                              ...editorState.nodes.map(
-                                (node) => Positioned(
-                                  key: ValueKey(
-                                    node.id,
-                                  ), // Important for stable updates
-                                  left: node.position.dx,
-                                  top: node.position.dy,
-                                  child: NodeWidget(
-                                    node: node,
-                                    editorState: editorState,
-                                  ),
+                                    // Nodes
+                                    ...editorState.nodes.map(
+                                      (node) => Positioned(
+                                        key: ValueKey(
+                                          node.id,
+                                        ), // Important for stable updates
+                                        left: node.position.dx,
+                                        top: node.position.dy,
+                                        child: NodeWidget(
+                                          node: node,
+                                          editorState: editorState,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
+                          Text(
+                            "${editorState.canvasOffset}\nScale: ${_scale}",
+                            style: TextStyle(color: Colors.black, fontSize: 40),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      "${editorState.canvasOffset}\nScale: ${_scale}",
-                      style: TextStyle(color: Colors.black, fontSize: 40),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                // Add context menu overlay
+                if (editorState.contextMenuPosition != null)
+                  Positioned(
+                    left: editorState.contextMenuPosition!.dx,
+                    top: editorState.contextMenuPosition!.dy,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap:
+                          () {}, // Prevent click from reaching outer GestureDetector
+                      child: ContextMenuOverlay(
+                        onDismiss: () => editorState.hideContextMenu(),
+                        onAddNode: () {
+                          final newNodeId =
+                              'node${editorState.nodes.length + 1}';
+                          // Convert screen position to world position
+                          final worldPos = _screenToWorld(
+                            editorState.contextMenuPosition!,
+                          );
+                          editorState.addNode(
+                            Node(
+                              id: newNodeId,
+                              title: 'New Node ${editorState.nodes.length + 1}',
+                              position: worldPos,
+                              inputPins: [
+                                Pin(
+                                  nodeId: newNodeId,
+                                  label: 'In',
+                                  direction: PinDirection.input,
+                                  type: PinType.value,
+                                ),
+                              ],
+                              outputPins: [
+                                Pin(
+                                  nodeId: newNodeId,
+                                  label: 'Out',
+                                  direction: PinDirection.output,
+                                  type: PinType.exec,
+                                ),
+                              ],
+                            ),
+                          );
+                          editorState.hideContextMenu();
+                        },
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         },
@@ -726,6 +874,19 @@ class PinWidget extends StatelessWidget {
     super.key, // Key is derived from pin.key in NodeWidget map
   });
 
+  Color _getPinColor(PinType type, bool isConnected, bool isPotentialTarget) {
+    if (isPotentialTarget) return Colors.yellow;
+
+    switch (type) {
+      case PinType.exec:
+        return isConnected ? Colors.green : Colors.green.withOpacity(0.3);
+      case PinType.value:
+        return isConnected ? Colors.cyan : Colors.cyan.withOpacity(0.3);
+      case PinType.render:
+        return isConnected ? Colors.purple : Colors.purple.withOpacity(0.3);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const double pinSize = 12.0;
@@ -778,6 +939,10 @@ class PinWidget extends StatelessWidget {
     }
 
     return GestureDetector(
+      // Add right click handler
+      onSecondaryTapUp: (details) {
+        editorState.removeConnectionsForPin(pin.key);
+      },
       // --- Connection Drag Handling ---
       behavior: HitTestBehavior.opaque,
       onPanStart: (details) {
@@ -801,7 +966,7 @@ class PinWidget extends StatelessWidget {
         editorState.endDraggingConnection();
       },
       child: Tooltip(
-        message: "${pin.label} (${pin.direction.name})",
+        message: "${pin.label} (${pin.direction.name}, ${pin.type.name})",
         child: MouseRegion(
           onEnter: (event) {
             print("Entering pin: ${pin.label}");
@@ -819,10 +984,7 @@ class PinWidget extends StatelessWidget {
             width: pinSize,
             height: pinSize,
             decoration: BoxDecoration(
-              color:
-                  isPotentialTarget
-                      ? Colors.yellow
-                      : (isConnected ? Colors.cyan : Colors.grey[600]),
+              color: _getPinColor(pin.type, isConnected, isPotentialTarget),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.black54, width: 1.5),
             ),
@@ -851,22 +1013,6 @@ class ConnectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = Colors.cyanAccent
-          ..strokeWidth = 2.5
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
-
-    final selectedPaint =
-        Paint()
-          ..color =
-              Colors
-                  .orangeAccent // Highlight color for connections of selected nodes
-          ..strokeWidth = 3.0
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
-
     final shadowPaint =
         Paint()
           ..color = Colors.black.withOpacity(0.3)
@@ -877,6 +1023,11 @@ class ConnectionPainter extends CustomPainter {
 
     // Draw existing connections
     for (final connection in editorState.connections) {
+      final startPin = editorState.findPinByKey(connection.startPinKey);
+      final endPin = editorState.findPinByKey(connection.endPinKey);
+
+      if (startPin == null || endPin == null) continue;
+
       final startPinPos = editorState.getPinGlobalPosition(
         connection.startPinKey,
       );
@@ -884,23 +1035,33 @@ class ConnectionPainter extends CustomPainter {
 
       if (startPinPos != null && endPinPos != null) {
         final path = _buildPath(startPinPos, endPinPos);
-        connection.path = path; // Store path for potential hit testing
+        connection.path = path;
 
-        // Check if either connected node is selected
-        final startNodeId =
-            editorState.findPinByKey(connection.startPinKey)?.nodeId;
-        final endNodeId =
-            editorState.findPinByKey(connection.endPinKey)?.nodeId;
-        bool isSelected =
-            (startNodeId != null &&
-                editorState.findNodeById(startNodeId)?.isSelected == true) ||
-            (endNodeId != null &&
-                editorState.findNodeById(endNodeId)?.isSelected == true);
+        // Get color based on pin type
+        Color lineColor;
+        switch (startPin.type) {
+          case PinType.exec:
+            lineColor = Colors.green;
+            break;
+          case PinType.value:
+            lineColor = Colors.cyan;
+            break;
+          case PinType.render:
+            lineColor = Colors.purple;
+            break;
+        }
+
+        final paint =
+            Paint()
+              ..color = lineColor
+              ..strokeWidth = 2.5
+              ..style = PaintingStyle.stroke
+              ..strokeCap = StrokeCap.round;
 
         // Draw shadow first
         canvas.drawPath(path, shadowPaint);
         // Draw connection line
-        canvas.drawPath(path, isSelected ? selectedPaint : paint);
+        canvas.drawPath(path, paint);
       }
     }
 
@@ -920,7 +1081,11 @@ class ConnectionPainter extends CustomPainter {
       // Draw temp line
       canvas.drawPath(
         tempPath,
-        paint..color = Colors.yellowAccent,
+        Paint()
+          ..color = Colors.yellowAccent
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round,
       ); // Use a distinct color
     }
   }
@@ -1055,5 +1220,38 @@ class GridPainter extends CustomPainter {
   bool shouldRepaint(covariant GridPainter oldDelegate) {
     // Repaint only if the offset changes
     return oldDelegate.offset != offset;
+  }
+}
+
+class ContextMenuOverlay extends StatelessWidget {
+  final VoidCallback onDismiss;
+  final VoidCallback onAddNode;
+
+  const ContextMenuOverlay({
+    super.key,
+    required this.onDismiss,
+    required this.onAddNode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 8,
+      borderRadius: BorderRadius.circular(4),
+      child: IntrinsicWidth(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ListTile(
+              dense: true,
+              leading: const Icon(Icons.add_circle_outline),
+              title: const Text('Add Node'),
+              onTap: onAddNode,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
