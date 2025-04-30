@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 
+import 'package:flutter/src/gestures/events.dart';
+
 // Enum to define pin direction
 enum PinDirection { input, output }
 
@@ -122,6 +124,9 @@ class BlueprintEditorState extends ChangeNotifier {
   Offset? get dragCurrentPosition => _dragCurrentPosition;
   PinKey? get dragStartPinKey => _dragStartPinKey;
 
+  PinKey? _currentHoverPinKey;
+  PinKey? get currentHoverPinKey => _currentHoverPinKey;
+
   // --- Node Management ---
   void addNode(Node node) {
     node.calculatePinPositions(); // Calculate pin positions when adding
@@ -137,6 +142,11 @@ class BlueprintEditorState extends ChangeNotifier {
           conn.startPinKey.value.startsWith(nodeId) ||
           conn.endPinKey.value.startsWith(nodeId),
     );
+    notifyListeners();
+  }
+
+  void setHoverPinKey(PinKey? pinKey) {
+    _currentHoverPinKey = pinKey;
     notifyListeners();
   }
 
@@ -184,43 +194,42 @@ class BlueprintEditorState extends ChangeNotifier {
   void startDraggingConnection(
     PinKey pinKey,
     Offset startPosition,
+    Offset mousePosition,
     PinDirection direction,
   ) {
     _dragStartPinKey = pinKey;
     _dragStartPinPosition = startPosition;
-    _dragCurrentPosition = startPosition; // Initialize current pos
+    _dragCurrentPosition = mousePosition; // Initialize current pos
     dragStartPinDirection = direction;
     notifyListeners();
   }
 
-  void updateDraggingConnection(Offset currentPosition) {
-    if (_dragStartPinKey != null) {
-      _dragCurrentPosition = currentPosition;
+  void updateDraggingConnection({Offset? currentPosition, Offset? delta}) {
+    if (_dragCurrentPosition != null) {
+      if (currentPosition != null) {
+        _dragCurrentPosition = currentPosition;
+      } else if (delta != null) {
+        _dragCurrentPosition = _dragCurrentPosition! + delta;
+      } else {
+        // Throw error
+        throw Exception("No current position or delta provided");
+      }
       notifyListeners();
     }
   }
 
-  void endDraggingConnection({PinKey? endPinKey}) {
+  void endDraggingConnection() {
+    var endPinKey = currentHoverPinKey;
     if (_dragStartPinKey != null &&
         endPinKey != null &&
         _dragStartPinKey != endPinKey) {
       // Ensure connection is between opposite pin types (output -> input)
-      final startPin = findPinByKey(_dragStartPinKey!);
-      final endPin = findPinByKey(endPinKey);
+      var startPin = findPinByKey(_dragStartPinKey!);
+      var endPin = findPinByKey(endPinKey);
 
       if (startPin != null &&
           endPin != null &&
           startPin.direction != endPin.direction) {
-        // Ensure input pins only accept one connection (optional rule)
-        if (endPin.direction == PinDirection.input) {
-          _connections.removeWhere((conn) => conn.endPinKey == endPinKey);
-        }
-        if (startPin.direction == PinDirection.output) {
-          _connections.removeWhere(
-            (conn) => conn.startPinKey == _dragStartPinKey!,
-          );
-        }
-
         // Determine correct start/end based on direction
         final outputPinKey =
             (startPin.direction == PinDirection.output)
@@ -230,6 +239,9 @@ class BlueprintEditorState extends ChangeNotifier {
             (startPin.direction == PinDirection.input)
                 ? _dragStartPinKey!
                 : endPinKey;
+
+        // Ensure input pins only accept one connection (optional rule)
+        _connections.removeWhere((conn) => conn.endPinKey == inputPinKey);
 
         _connections.add(
           Connection(startPinKey: outputPinKey, endPinKey: inputPinKey),
@@ -277,9 +289,9 @@ class BlueprintEditorState extends ChangeNotifier {
       if (node != null) {
         // Pin position is relative to node's top-left + node position + canvas offset
         return node.position +
+            const Offset(8, 8) + // padding TODO: remove
             pin.relativePosition +
-            const Offset(6, 6) +
-            _canvasOffset; // Add pin radius offset
+            const Offset(6, 6); // center location
       }
     }
     return null;
@@ -320,7 +332,9 @@ class BlueprintEditorPage extends StatefulWidget {
 
 class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
   final BlueprintEditorState editorState = BlueprintEditorState();
-  Offset _lastPanPosition = Offset.zero; // For calculating pan delta
+  Offset _lastPanPosition = Offset.zero;
+
+  double _scale = 1.0; // For calculating pan delta
 
   @override
   void initState() {
@@ -421,93 +435,161 @@ class _BlueprintEditorPageState extends State<BlueprintEditorPage> {
       body: ListenableBuilder(
         listenable: editorState,
         builder: (context, child) {
-          return GestureDetector(
-            // --- Canvas Panning ---
-            onPanStart: (details) {
-              _lastPanPosition = details.globalPosition;
-              // Deselect nodes if clicking on background
-              final RenderBox box = context.findRenderObject() as RenderBox;
-              final localPosition = box.globalToLocal(details.globalPosition);
-              bool hitNode = false;
-              // Check if click hit any node
-              for (final node in editorState.nodes) {
-                final nodeRect = node.rect.translate(
-                  editorState.canvasOffset.dx,
-                  editorState.canvasOffset.dy,
-                );
-                if (nodeRect.contains(localPosition)) {
-                  hitNode = true;
-                  break;
-                }
-              }
-              if (!hitNode) {
-                editorState.deselectAllNodes();
-              }
-            },
-            onPanUpdate: (details) {
-              final delta = details.globalPosition - _lastPanPosition;
-              // Only pan if not dragging a node (node drag handled separately)
-              // A bit simplified: Assumes if a node is selected, we might be dragging it.
-              // A more robust check would involve tracking which element received the onPanStart.
-              if (editorState.nodes.where((n) => n.isSelected).isEmpty &&
-                  editorState.dragStartPinKey == null) {
-                editorState.panCanvas(delta);
-              }
-              // Update connection drag position if active
-              else if (editorState.dragStartPinKey != null) {
+          return Listener(
+            onPointerSignal: _handleScrollZoom,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanStart: (details) {
+                _lastPanPosition = details.globalPosition;
+                // Deselect nodes if clicking on background
                 final RenderBox box = context.findRenderObject() as RenderBox;
                 final localPosition = box.globalToLocal(details.globalPosition);
-                editorState.updateDraggingConnection(
-                  localPosition,
-                ); // Use local position for drawing
-              }
-              _lastPanPosition = details.globalPosition;
-            },
-            onPanEnd: (details) {
-              // Finalize connection drag if active
-              if (editorState.dragStartPinKey != null) {
-                // We need to check if the pan ended over a valid pin
-                // This requires hit-testing pins based on the final position.
-                // For simplicity now, we just end the drag. A real implementation
-                // needs to find the pin under the cursor here.
-                editorState.endDraggingConnection(); // No end pin provided yet
-              }
-            },
-            // --- Main Canvas Stack ---
-            child: Stack(
-              clipBehavior:
-                  Clip.none, // Allow nodes to be dragged partially off-screen
-              children: [
-                // Background Grid (Optional)
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: GridPainter(editorState.canvasOffset),
-                  ),
-                ),
+                bool hitNode = false;
+                // Check if click hit any node
+                for (final node in editorState.nodes) {
+                  final nodeRect = node.rect.translate(
+                    editorState.canvasOffset.dx,
+                    editorState.canvasOffset.dy,
+                  );
+                  if (nodeRect.contains(localPosition)) {
+                    hitNode = true;
+                    break;
+                  }
+                }
+                if (!hitNode) {
+                  editorState.deselectAllNodes();
+                }
+              },
+              onPanUpdate: (details) {
+                final delta = details.globalPosition - _lastPanPosition;
+                // Only pan if not dragging a node (node drag handled separately)
+                // A bit simplified: Assumes if a node is selected, we might be dragging it.
+                // A more robust check would involve tracking which element received the onPanStart.
+                if (editorState.nodes.where((n) => n.isSelected).isEmpty &&
+                    editorState.dragStartPinKey == null) {
+                  editorState.panCanvas(delta);
+                }
+                // Update connection drag position if active
+                // else if (editorState.dragStartPinKey != null) {
+                //   final RenderBox box = context.findRenderObject() as RenderBox;
+                //   final localPosition = box.globalToLocal(
+                //     details.globalPosition,
+                //   );
+                //   editorState.updateDraggingConnection(
+                //     localPosition,
+                //   ); // Use local position for drawing
+                // }
+                _lastPanPosition = details.globalPosition;
+              },
+              onPanEnd: (details) {
+                // Finalize connection drag if active
+                if (editorState.dragStartPinKey != null) {
+                  // We need to check if the pan ended over a valid pin
+                  // This requires hit-testing pins based on the final position.
+                  // For simplicity now, we just end the drag. A real implementation
+                  // needs to find the pin under the cursor here.
+                  editorState
+                      .endDraggingConnection(); // No end pin provided yet
+                }
+              },
+              child: Container(
+                color: Colors.amber,
+                constraints: BoxConstraints.expand(),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      // clipBehavior: Clip.hardEdge,
+                      top: 0,
+                      left: 0,
+                      width: 4000,
+                      height: 4000,
+                      child: Transform(
+                        alignment: Alignment.topLeft,
+                        transformHitTests: true,
+                        transform:
+                            Matrix4.identity()
+                              ..translate(
+                                editorState.canvasOffset.dx,
+                                editorState.canvasOffset.dy,
+                              )
+                              ..scale(_scale),
+                        child: SizedBox(
+                          width: 4000,
+                          height: 4000,
+                          child: Stack(
+                            clipBehavior:
+                                Clip.none, // Allow nodes to be dragged partially off-screen
+                            children: [
+                              // Background Grid (Optional)
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: GridPainter(
+                                    editorState.canvasOffset,
+                                    _scale,
+                                  ),
+                                ),
+                              ),
 
-                // Connection Lines Painter
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: ConnectionPainter(editorState: editorState),
-                  ),
-                ),
+                              // Connection Lines Painter
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: ConnectionPainter(
+                                    editorState: editorState,
+                                  ),
+                                ),
+                              ),
 
-                // Nodes
-                ...editorState.nodes.map(
-                  (node) => Positioned(
-                    key: ValueKey(node.id), // Important for stable updates
-                    left: node.position.dx + editorState.canvasOffset.dx,
-                    top: node.position.dy + editorState.canvasOffset.dy,
-                    child: NodeWidget(node: node, editorState: editorState),
-                  ),
+                              // Nodes
+                              ...editorState.nodes.map(
+                                (node) => Positioned(
+                                  key: ValueKey(
+                                    node.id,
+                                  ), // Important for stable updates
+                                  left: node.position.dx,
+                                  top: node.position.dy,
+                                  child: NodeWidget(
+                                    node: node,
+                                    editorState: editorState,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      "${editorState.canvasOffset}\nScale: ${_scale}",
+                      style: TextStyle(color: Colors.black, fontSize: 40),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           );
         },
       ),
     );
   }
+
+  void _handleScrollZoom(PointerSignalEvent e) {
+    if (e is! PointerScrollEvent) return;
+    final mousePos = e.localPosition;
+    final worldPos = _screenToWorld(mousePos);
+    final factor = e.scrollDelta.dy < 0 ? 1.1 : 0.9;
+    final newScale = (_scale * factor).clamp(0.25, 4.0);
+    setState(() {
+      _scale = newScale;
+      editorState._canvasOffset = mousePos - worldPos * _scale;
+    });
+  }
+
+  Offset _screenToWorld(Offset screen) =>
+      (screen - editorState._canvasOffset) / _scale;
+
+  Offset _worldToScreen(Offset world) =>
+      (world * _scale) + editorState._canvasOffset;
 }
 
 // --- Node Widget ---
@@ -522,85 +604,111 @@ class NodeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     // Recalculate pin positions if needed (e.g., if size changes, though fixed for now)
     // node.calculatePinPositions(); // Usually called when node created/resized
+    var padding = 8;
 
-    return GestureDetector(
-      onPanStart: (details) {
-        // Select node on drag start
-        editorState.selectNode(
-          node.id,
-          multiSelect: false,
-        ); // Basic single selection
-      },
-      onPanUpdate: (details) {
-        // Move the selected node
-        editorState.moveNode(node.id, details.delta);
-      },
-      child: Material(
-        elevation: node.isSelected ? 8.0 : 4.0,
-        borderRadius: BorderRadius.circular(8.0),
-        color: node.isSelected ? Colors.blueGrey[700] : Colors.blueGrey[900],
-        child: Container(
-          width: node.size.width,
-          height: node.size.height,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(
-              color:
-                  node.isSelected ? Colors.lightBlueAccent : Colors.grey[700]!,
-              width: node.isSelected ? 2.0 : 1.0,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          alignment: Alignment.center,
+          width: node.size.width + padding * 2,
+          height: node.size.height + padding * 2,
+          color: Colors.white54,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanStart: (details) {
+              // Select node on drag start
+              editorState.selectNode(
+                node.id,
+                multiSelect: false,
+              ); // Basic single selection
+            },
+            onPanUpdate: (details) {
+              // Move the selected node
+              editorState.moveNode(node.id, details.delta);
+            },
+            child: Material(
+              elevation: node.isSelected ? 8.0 : 4.0,
+              borderRadius: BorderRadius.circular(8.0),
+              child: Container(
+                width: node.size.width,
+                height: node.size.height,
+                decoration: BoxDecoration(
+                  color:
+                      node.isSelected
+                          ? Colors.blueGrey[700]
+                          : Colors.blueGrey[900],
+                  borderRadius: BorderRadius.circular(8.0),
+                  border: Border.all(
+                    color:
+                        node.isSelected
+                            ? Colors.lightBlueAccent
+                            : Colors.grey[700]!,
+                    width: node.isSelected ? 2.0 : 1.0,
+                  ),
+                ),
+                child: Stack(
+                  clipBehavior:
+                      Clip.none, // Allow pins to draw outside bounds slightly
+                  children: [
+                    // Node Title
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 6.0,
+                          horizontal: 10.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(
+                              7.0,
+                            ), // Match container radius
+                            topRight: Radius.circular(7.0),
+                          ),
+                        ),
+                        child: Text(
+                          node.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          child: Stack(
-            clipBehavior:
-                Clip.none, // Allow pins to draw outside bounds slightly
-            children: [
-              // Node Title
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 6.0,
-                    horizontal: 10.0,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.3),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(7.0), // Match container radius
-                      topRight: Radius.circular(7.0),
-                    ),
-                  ),
-                  child: Text(
-                    node.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ),
-              // Input Pins
-              ...node.inputPins.map(
-                (pin) => Positioned(
-                  left: pin.relativePosition.dx - 6, // Center the pin visually
-                  top: pin.relativePosition.dy,
-                  child: PinWidget(pin: pin, editorState: editorState),
-                ),
-              ),
-              // Output Pins
-              ...node.outputPins.map(
-                (pin) => Positioned(
-                  left: pin.relativePosition.dx - 6, // Center the pin visually
-                  top: pin.relativePosition.dy,
-                  child: PinWidget(pin: pin, editorState: editorState),
-                ),
-              ),
-            ],
+        ),
+        // Input Pins
+        ...node.inputPins.map(
+          (pin) => Positioned(
+            left:
+                padding +
+                pin.relativePosition.dx -
+                6, // Center the pin visually
+            top: padding + pin.relativePosition.dy,
+            child: PinWidget(pin: pin, editorState: editorState),
           ),
         ),
-      ),
+        // Output Pins
+        ...node.outputPins.map(
+          (pin) => Positioned(
+            left:
+                padding +
+                pin.relativePosition.dx -
+                6, // Center the pin visually
+            top: padding + pin.relativePosition.dy,
+            child: PinWidget(pin: pin, editorState: editorState),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -671,92 +779,42 @@ class PinWidget extends StatelessWidget {
 
     return GestureDetector(
       // --- Connection Drag Handling ---
+      behavior: HitTestBehavior.opaque,
       onPanStart: (details) {
         // Get the global position of the center of the pin widget
-        final RenderBox renderBox = context.findRenderObject() as RenderBox;
-        final pinCenterGlobal = renderBox.localToGlobal(
-          const Offset(pinSize / 2, pinSize / 2),
-        );
-        // Convert global position to the local coordinate system of the main Stack
-        final RenderBox stackRenderBox =
-            context
-                .findAncestorRenderObjectOfType<
-                  RenderBox
-                >()!; // Find the main Stack's RenderBox
-        final pinCenterLocalToStack = stackRenderBox.globalToLocal(
-          pinCenterGlobal,
-        );
+        var pinPosition = editorState.getPinGlobalPosition(pin.key)!;
+        var mousePosition =
+            pinPosition + details.localPosition - Offset(pinSize, pinSize / 2);
 
         editorState.startDraggingConnection(
           pin.key,
-          pinCenterLocalToStack,
+          pinPosition,
+          mousePosition,
           pin.direction,
         );
       },
       onPanUpdate: (details) {
-        // Update position while dragging from pin handled by the main GestureDetector
+        editorState.updateDraggingConnection(delta: details.delta);
       },
       onPanEnd: (details) {
-        // Find which pin (if any) the drag ended on
-        PinKey? targetPinKey;
-        final RenderBox stackRenderBox =
-            context.findAncestorRenderObjectOfType<RenderBox>()!;
-        final dropPositionLocal = stackRenderBox.globalToLocal(
-          _lastPanPosition,
-        ); // Use last known global position
-
-        for (var node in editorState.nodes) {
-          for (var targetPin in node.allPins) {
-            if (targetPin.key == editorState.dragStartPinKey)
-              continue; // Can't connect to self
-
-            // Get the target pin's widget RenderBox
-            // This relies on the PinWidget having a key based on PinKey
-            final GlobalKey targetGlobalKey = GlobalKey(
-              debugLabel: targetPin.key.value,
-            ); // Need a way to access keys, this is conceptual
-            final RenderBox?
-            targetRenderBox = // How to get renderbox from key? Needs better state/widget structure
-                editorState.getPinGlobalPosition(targetPin.key) != null
-                    ? // Check if pin exists
-                    (PinWidget(
-                          pin: targetPin,
-                          editorState: editorState,
-                          key: ValueKey(targetPin.key),
-                        ).createElement().findRenderObject()
-                        as RenderBox?) // This is NOT reliable
-                    : null;
-
-            // A more robust way: iterate through all PinWidgets in the tree and check their render boxes
-            // Or, store pin RenderBoxes/positions in the state when they are laid out.
-
-            // Simplified Hit Test (using calculated positions):
-            final targetPinGlobalPos = editorState.getPinGlobalPosition(
-              targetPin.key,
-            );
-            if (targetPinGlobalPos != null) {
-              final targetRect = Rect.fromCenter(
-                center: targetPinGlobalPos,
-                width: pinSize + interactionPadding * 2,
-                height: pinSize + interactionPadding * 2,
-              );
-              // Use the Stack's local coordinates for the drop position
-              if (targetRect.contains(dropPositionLocal)) {
-                targetPinKey = targetPin.key;
-                break; // Found target pin
-              }
-            }
-          }
-          if (targetPinKey != null) break; // Exit outer loop
-        }
-
-        editorState.endDraggingConnection(endPinKey: targetPinKey);
+        print("Pin drag ended");
+        editorState.endDraggingConnection();
       },
       child: Tooltip(
         message: "${pin.label} (${pin.direction.name})",
-        child: Container(
-          // Add padding to increase interaction area without enlarging visual pin
-          padding: const EdgeInsets.all(interactionPadding),
+        child: MouseRegion(
+          onEnter: (event) {
+            print("Entering pin: ${pin.label}");
+            editorState.setHoverPinKey(pin.key);
+          },
+          onHover: (event) {
+            print("Hovering over pin: ${pin.label}");
+            editorState.setHoverPinKey(pin.key);
+          },
+          onExit: (event) {
+            print("Exiting pin: ${pin.label}");
+            editorState.setHoverPinKey(null);
+          },
           child: Container(
             width: pinSize,
             height: pinSize,
@@ -923,10 +981,11 @@ class ConnectionPainter extends CustomPainter {
 
 class GridPainter extends CustomPainter {
   final Offset offset; // Canvas pan offset
+  final double scale; // Canvas pan offset
   final double majorGridStep = 100.0;
   final double minorGridStep = 20.0;
 
-  GridPainter(this.offset);
+  GridPainter(this.offset, this.scale);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -944,27 +1003,53 @@ class GridPainter extends CustomPainter {
 
     // Calculate the start and end points based on the canvas size and offset
     // Adjust grid lines based on the canvas offset to create panning effect
-    final double startX = -(offset.dx % majorGridStep);
-    final double startY = -(offset.dy % majorGridStep);
-    final double startXMinor = -(offset.dx % minorGridStep);
-    final double startYMinor = -(offset.dy % minorGridStep);
 
+    Offset screenZero = _screenToWorld(Offset.zero);
+    Offset screenMax = _screenToWorld(Offset(size.width, size.height));
+
+    final double startX =
+        (screenZero.dx ~/ majorGridStep).toDouble() * majorGridStep;
+    final double startY =
+        (screenZero.dy ~/ majorGridStep).toDouble() * majorGridStep;
+    final double startXMinor =
+        (screenZero.dx ~/ minorGridStep).toDouble() * minorGridStep;
+    final double startYMinor =
+        (screenZero.dy ~/ minorGridStep).toDouble() * minorGridStep;
     // Draw minor grid lines
-    for (double x = startXMinor; x < size.width; x += minorGridStep) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), minorPaint);
+    for (double x = startXMinor; x < screenMax.dx; x += minorGridStep) {
+      canvas.drawLine(
+        Offset(x, screenZero.dy),
+        Offset(x, screenMax.dy),
+        minorPaint,
+      );
     }
-    for (double y = startYMinor; y < size.height; y += minorGridStep) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), minorPaint);
+    for (double y = startYMinor; y < screenMax.dy; y += minorGridStep) {
+      canvas.drawLine(
+        Offset(screenZero.dx, y),
+        Offset(screenMax.dx, y),
+        minorPaint,
+      );
     }
 
     // Draw major grid lines (over minor lines)
-    for (double x = startX; x < size.width; x += majorGridStep) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), majorPaint);
+    for (double x = startX; x < screenMax.dx; x += majorGridStep) {
+      canvas.drawLine(
+        Offset(x, screenZero.dy),
+        Offset(x, screenMax.dy),
+        majorPaint,
+      );
     }
-    for (double y = startY; y < size.height; y += majorGridStep) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), majorPaint);
+    for (double y = startY; y < screenMax.dy; y += majorGridStep) {
+      canvas.drawLine(
+        Offset(screenZero.dx, y),
+        Offset(screenMax.dx, y),
+        majorPaint,
+      );
     }
   }
+
+  // screen to world
+  Offset _screenToWorld(Offset screen) => (screen - offset) / scale;
 
   @override
   bool shouldRepaint(covariant GridPainter oldDelegate) {
