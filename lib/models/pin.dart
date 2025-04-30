@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:unreal_editor/models/connection.dart';
 
 // Enum to define pin direction
 enum PinDirection { input, output }
@@ -22,6 +23,12 @@ class Pin {
   final String label;
   final PinDirection direction;
   final PinType type;
+  final multi;
+
+  // this is a lazy list, may contain connections that are not in the linked list
+  List<Connection> _connections = [];
+  Iterable<Connection> get connections =>
+      _connections.where((conn) => conn.list != null);
   Offset relativePosition = Offset.zero;
 
   Pin({
@@ -29,6 +36,7 @@ class Pin {
     required this.label,
     required this.direction,
     required this.type,
+    this.multi = false,
   }) : key = PinKey('${nodeId}_${label}_${direction.name}');
 
   @override
@@ -38,4 +46,16 @@ class Pin {
 
   @override
   int get hashCode => key.hashCode;
+
+  void addConnection(Connection newConn) {
+    // if pin is not multi, remove all other connections
+    if (!multi) {
+      // remove from linked list
+      _connections = _connections.where((conn) => conn.list != null).toList();
+      _connections.forEach((conn) {
+        conn.unlink();
+      });
+    }
+    _connections.add(newConn);
+  }
 }

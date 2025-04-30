@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 import '../models/node.dart';
@@ -7,7 +9,7 @@ import '../models/connection.dart';
 // --- ChangeNotifier for State Management ---
 
 class BlueprintEditorState extends ChangeNotifier {
-  final BlueprintState _blueprintState = BlueprintState();
+  final BlueprintState _blueprintState;
   Offset _canvasOffset = Offset.zero; // For panning
   double _scale = 1.0; // For zooming
 
@@ -17,8 +19,11 @@ class BlueprintEditorState extends ChangeNotifier {
   PinKey? _dragStartPinKey;
   PinDirection? dragStartPinDirection;
 
-  List<Node> get nodes => _blueprintState.nodes;
-  List<Connection> get connections => _blueprintState.connections;
+  Iterable<Node> get nodes => _blueprintState.nodes;
+  Iterable<Connection> get connections => _blueprintState.connections;
+  Iterable<Connection> get reversedConnections =>
+      _blueprintState.connections.reversed;
+  Node get viewportNode => _blueprintState.viewportNode;
   Offset get canvasOffset => _canvasOffset;
   double get scale => _scale;
 
@@ -39,6 +44,8 @@ class BlueprintEditorState extends ChangeNotifier {
   Connection? _hoveredConnection;
   Connection? get hoveredConnection => _hoveredConnection;
 
+  BlueprintEditorState(this._blueprintState);
+
   void setHoveredConnection(Connection? connection) {
     if (_hoveredConnection == connection) return; // No change
     _hoveredConnection = connection;
@@ -58,19 +65,11 @@ class BlueprintEditorState extends ChangeNotifier {
   // --- Node Management ---
   void addNode(Node node) {
     node.calculatePinPositions(); // Calculate pin positions when adding
-    nodes.add(node);
-    notifyListeners();
+    _blueprintState.addNode(node);
   }
 
   void deleteNode(String nodeId) {
-    nodes.removeWhere((node) => node.id == nodeId);
-    // Remove connections associated with the deleted node
-    connections.removeWhere(
-      (conn) =>
-          conn.startPinKey.value.startsWith(nodeId) ||
-          conn.endPinKey.value.startsWith(nodeId),
-    );
-    notifyListeners();
+    _blueprintState.removeNode(nodeId);
   }
 
   void setHoverPinKey(PinKey? pinKey) {
@@ -165,8 +164,8 @@ class BlueprintEditorState extends ChangeNotifier {
         endPinKey != null &&
         _dragStartPinKey != endPinKey) {
       // Get both pins
-      var startPin = findPinByKey(_dragStartPinKey!);
-      var endPin = findPinByKey(endPinKey);
+      var startPin = _blueprintState.findPinByKey(_dragStartPinKey!);
+      var endPin = _blueprintState.findPinByKey(endPinKey);
 
       if (startPin != null &&
           endPin != null &&
@@ -181,11 +180,13 @@ class BlueprintEditorState extends ChangeNotifier {
             ? _dragStartPinKey!
             : endPinKey;
 
-        connections.removeWhere((conn) => conn.endPinKey == inputPinKey);
+        var newConn =
+            Connection(startPinKey: outputPinKey, endPinKey: inputPinKey);
+        startPin.addConnection(newConn);
+        endPin.addConnection(newConn);
         print("Adding connection: $outputPinKey -> $inputPinKey");
-        connections.add(
-          Connection(startPinKey: outputPinKey, endPinKey: inputPinKey),
-        );
+
+        _blueprintState.addConnection(newConn);
       }
     }
     // Reset dragging state
@@ -196,43 +197,11 @@ class BlueprintEditorState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeConnection(Connection connection) {
-    connections.remove(connection);
-    notifyListeners();
-  }
-
-  void removeConnectionsForPin(PinKey pinKey) {
-    connections.removeWhere(
-      (conn) => conn.startPinKey == pinKey || conn.endPinKey == pinKey,
-    );
-    notifyListeners();
-  }
-
-  // --- Helpers ---
-  Node? findNodeById(String id) {
-    try {
-      return nodes.firstWhere((node) => node.id == id);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  Pin? findPinByKey(PinKey key) {
-    for (var node in nodes) {
-      for (var pin in node.allPins) {
-        if (pin.key == key) {
-          return pin;
-        }
-      }
-    }
-    return null;
-  }
-
   // Get the global position of a pin
   Offset? getPinGlobalPosition(PinKey pinKey) {
-    final pin = findPinByKey(pinKey);
+    final pin = _blueprintState.findPinByKey(pinKey);
     if (pin != null) {
-      final node = findNodeById(pin.nodeId);
+      final node = _blueprintState.findNodeById(pin.nodeId);
       if (node != null) {
         // Pin position is relative to node's top-left + node position + canvas offset
         return node.position +
@@ -256,4 +225,12 @@ class BlueprintEditorState extends ChangeNotifier {
   Offset screenToWorld(Offset screen) => screen / scale + canvasOffset;
 
   Offset worldToScreen(Offset world) => (world - canvasOffset) * scale;
+
+  Pin? findPinByKey(PinKey key) {
+    return _blueprintState.findPinByKey(key);
+  }
+
+  Node? findNodeById(String id) {
+    return _blueprintState.findNodeById(id);
+  }
 }

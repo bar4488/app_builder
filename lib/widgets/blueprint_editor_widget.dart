@@ -1,7 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:unreal_editor/state/blueprint_state.dart';
 import 'package:unreal_editor/widgets/context_menu_overlay.dart';
+import 'package:unreal_editor/widgets/multi_child_node_widget.dart';
 import 'dart:async';
 
 import '../models/node.dart';
@@ -31,6 +33,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
   void _handleNodeDrag(
       BuildContext context, DragUpdateDetails details, String nodeId) {
     final editorState = context.read<BlueprintEditorState>();
+    final blueprintState = context.read<BlueprintState>();
     final RenderBox box = context.findRenderObject() as RenderBox;
     final Size size = box.size;
     final Offset position = details.globalPosition;
@@ -79,6 +82,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
   @override
   Widget build(BuildContext context) {
     final editorState = context.watch<BlueprintEditorState>();
+    final blueprintState = context.watch<BlueprintState>();
     return ListenableBuilder(
       listenable: editorState,
       builder: (context, child) {
@@ -140,10 +144,11 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                       );
                       final hitConnection = painter.getConnectionAtPoint(
                         editorState.screenToWorld(localPosition),
+                        reversed: true,
                       );
 
                       if (hitConnection != null) {
-                        editorState.removeConnection(hitConnection);
+                        blueprintState.removeConnection(hitConnection);
                         return;
                       }
 
@@ -217,16 +222,30 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                                         ),
                                         left: node.position.dx,
                                         top: node.position.dy,
-                                        child: NodeWidget(
-                                          node: node,
-                                          onDragUpdate: (details) =>
-                                              _handleNodeDrag(
-                                            context,
-                                            details,
-                                            node.id,
+                                        child: node.matchType(
+                                          static: () => NodeWidget(
+                                            node: node,
+                                            onDragUpdate: (details) =>
+                                                _handleNodeDrag(
+                                              context,
+                                              details,
+                                              node.id,
+                                            ),
+                                            onDragEnd: (details) =>
+                                                _autoScrollTimer?.cancel(),
                                           ),
-                                          onDragEnd: (details) =>
-                                              _autoScrollTimer?.cancel(),
+                                          multiOutput: () =>
+                                              MultiOutputNodeWidget(
+                                            node: node,
+                                            onDragUpdate: (details) =>
+                                                _handleNodeDrag(
+                                              context,
+                                              details,
+                                              node.id,
+                                            ),
+                                            onDragEnd: (details) =>
+                                                _autoScrollTimer?.cancel(),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -257,48 +276,110 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                     onTap: () {},
                     child: ContextMenuOverlay(
                       onDismiss: () => editorState.hideContextMenu(),
-                      onAddNode: () {
-                        final newNodeId = 'node${editorState.nodes.length + 1}';
-                        final worldPos = editorState.screenToWorld(
-                          editorState.contextMenuPosition!,
-                        );
-                        editorState.addNode(
-                          Node(
-                            id: newNodeId,
-                            title: 'New Node ${editorState.nodes.length + 1}',
-                            position: worldPos,
-                            inputPins: [
-                              Pin(
-                                nodeId: newNodeId,
-                                label: 'In',
-                                direction: PinDirection.input,
-                                type: PinType.exec,
-                              ),
-                              Pin(
-                                nodeId: newNodeId,
-                                label: 'In2',
-                                direction: PinDirection.input,
-                                type: PinType.value,
-                              ),
-                            ],
-                            outputPins: [
-                              Pin(
-                                nodeId: newNodeId,
-                                label: 'Out',
-                                direction: PinDirection.output,
-                                type: PinType.exec,
-                              ),
-                              Pin(
-                                nodeId: newNodeId,
-                                label: 'Out2',
-                                direction: PinDirection.output,
-                                type: PinType.value,
-                              ),
-                            ],
+                      onAddNode: () => addNode(
+                        name: "New Node",
+                        type: NodeType.static,
+                        inputPins: (id) => [
+                          Pin(
+                            nodeId: id,
+                            label: 'In',
+                            direction: PinDirection.input,
+                            type: PinType.exec,
                           ),
-                        );
-                        editorState.hideContextMenu();
-                      },
+                          Pin(
+                            nodeId: id,
+                            label: 'In2',
+                            direction: PinDirection.input,
+                            type: PinType.value,
+                          ),
+                        ],
+                        outputPins: (id) => [
+                          Pin(
+                            nodeId: id,
+                            label: 'Out',
+                            direction: PinDirection.output,
+                            type: PinType.exec,
+                          ),
+                          Pin(
+                            nodeId: id,
+                            label: 'Out2',
+                            direction: PinDirection.output,
+                            type: PinType.value,
+                          ),
+                        ],
+                      ),
+                      onAddColumnNode: () => addNode(
+                          name: "Column",
+                          type: NodeType.multiOutput,
+                          inputPins: (id) => [
+                                Pin(
+                                  nodeId: id,
+                                  label: 'In',
+                                  direction: PinDirection.input,
+                                  type: PinType.render,
+                                ),
+                              ],
+                          outputPins: (id) => [
+                                Pin(
+                                  nodeId: id,
+                                  label: 'child1',
+                                  direction: PinDirection.output,
+                                  type: PinType.render,
+                                ),
+                                Pin(
+                                  nodeId: id,
+                                  label: 'child2',
+                                  direction: PinDirection.output,
+                                  type: PinType.render,
+                                ),
+                              ],
+                          renderer: ColumnNodeRenderer()),
+                      onAddRowNode: () => addNode(
+                          name: "Row",
+                          type: NodeType.multiOutput,
+                          inputPins: (id) => [
+                                Pin(
+                                  nodeId: id,
+                                  label: 'In',
+                                  direction: PinDirection.input,
+                                  type: PinType.render,
+                                ),
+                              ],
+                          outputPins: (id) => [
+                                Pin(
+                                  nodeId: id,
+                                  label: 'child1',
+                                  direction: PinDirection.output,
+                                  type: PinType.render,
+                                ),
+                                Pin(
+                                  nodeId: id,
+                                  label: 'child2',
+                                  direction: PinDirection.output,
+                                  type: PinType.render,
+                                ),
+                              ],
+                          renderer: RowNodeRenderer()),
+                      onAddTextNode: () => addNode(
+                        name: "Text",
+                        type: NodeType.static,
+                        inputPins: (id) => [
+                          Pin(
+                            nodeId: id,
+                            label: 'In',
+                            direction: PinDirection.input,
+                            type: PinType.render,
+                          ),
+                          Pin(
+                            nodeId: id,
+                            label: 'Text',
+                            direction: PinDirection.input,
+                            type: PinType.value,
+                          ),
+                        ],
+                        outputPins: (id) => [],
+                        renderer: TextNodeRenderer(),
+                      ),
                     ),
                   ),
                 ),
@@ -307,6 +388,34 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
         );
       },
     );
+  }
+
+  void addNode({
+    required String name,
+    required NodeType type,
+    required List<Pin> Function(String id) inputPins,
+    required List<Pin> Function(String id) outputPins,
+    NodeRenderer? renderer,
+  }) {
+    var editorState = context.read<BlueprintEditorState>();
+    if (editorState.contextMenuPosition == null) return;
+
+    final newNodeId = 'node${editorState.nodes.length + 1}';
+    final worldPos = editorState.screenToWorld(
+      editorState.contextMenuPosition!,
+    );
+    editorState.addNode(
+      Node(
+        id: newNodeId,
+        type: type,
+        renderer: renderer,
+        title: '$name ${editorState.nodes.length + 1}',
+        position: worldPos,
+        inputPins: inputPins(newNodeId),
+        outputPins: outputPins(newNodeId),
+      ),
+    );
+    editorState.hideContextMenu();
   }
 
   void _handleScrollZoom(PointerSignalEvent e) {

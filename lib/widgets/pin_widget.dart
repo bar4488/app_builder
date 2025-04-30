@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/state/blueprint_editor_state.dart';
+import 'package:unreal_editor/state/blueprint_state.dart';
 import '../models/pin.dart';
 
 class PinWidget extends StatelessWidget {
@@ -30,6 +31,7 @@ class PinWidget extends StatelessWidget {
     const double pinSize = 12.0;
     const double interactionPadding = 8.0; // Increase tappable area
     var editorState = context.read<BlueprintEditorState>();
+    var blueprintState = context.read<BlueprintState>();
 
     // Check if this pin is connected
     bool isConnected = editorState.connections.any(
@@ -77,7 +79,7 @@ class PinWidget extends StatelessWidget {
     return GestureDetector(
       // Add right click handler
       onSecondaryTapUp: (details) {
-        editorState.removeConnectionsForPin(pin.key);
+        blueprintState.removeConnectionsForPin(pin.key);
       },
       // --- Connection Drag Handling ---
       behavior: HitTestBehavior.opaque,

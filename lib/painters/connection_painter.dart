@@ -35,9 +35,11 @@ class ConnectionPainter extends CustomPainter {
   }
 
   Connection? getConnectionAtPoint(Offset point, {bool reversed = false}) {
-    Iterable<Connection> connections = editorState.connections;
+    Iterable<Connection> connections;
     if (reversed) {
-      connections = editorState.connections.reversed;
+      connections = editorState.reversedConnections;
+    } else {
+      connections = editorState.connections;
     }
     for (final connection in connections) {
       if (connection.path != null && isPointNearConnection(point, connection)) {
