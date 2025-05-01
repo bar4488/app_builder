@@ -36,7 +36,12 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
     final blueprintState = context.read<BlueprintState>();
     final RenderBox box = context.findRenderObject() as RenderBox;
     final Size size = box.size;
-    final Offset position = details.globalPosition;
+    final node = editorState.findNodeById(nodeId)!;
+    final Offset position = editorState.worldToScreen(node.position +
+        Offset(node.padding + 4, node.padding + 4) +
+        details.localPosition);
+    // print("render box size: $size, position: $position");
+    // return;
     const scrollArea = 60.0; // pixels from edge that triggers scrolling
     const scrollSpeed = 15.0; // pixels per scroll
 
@@ -63,7 +68,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
       ) {
         editorState.panCanvas(scrollDelta);
         // Also move the node to maintain relative position
-        editorState.moveNode(nodeId, -scrollDelta);
+        editorState.moveNode(nodeId, -scrollDelta / editorState.scale);
         print(
           "Auto-scrolling: $scrollDelta, new node position: ${editorState.findNodeById(nodeId)?.position}",
         );
@@ -160,13 +165,13 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                       if (editorState.nodes
                               .where((n) => n.isSelected)
                               .isEmpty &&
-                          editorState.dragStartPinKey == null) {
+                          editorState.dragStartPin == null) {
                         editorState.panCanvas(delta);
                       }
                       _lastPanPosition = details.globalPosition;
                     },
                     onPanEnd: (details) {
-                      if (editorState.dragStartPinKey != null) {
+                      if (editorState.dragStartPin != null) {
                         editorState.endDraggingConnection();
                       }
                     },
@@ -223,7 +228,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                                         left: node.position.dx,
                                         top: node.position.dy,
                                         child: node.matchType(
-                                          static: () => NodeWidget(
+                                          static: (node) => NodeWidget(
                                             node: node,
                                             onDragUpdate: (details) =>
                                                 _handleNodeDrag(
@@ -234,7 +239,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                                             onDragEnd: (details) =>
                                                 _autoScrollTimer?.cancel(),
                                           ),
-                                          multiOutput: () =>
+                                          multiOutput: (node) =>
                                               MultiOutputNodeWidget(
                                             node: node,
                                             onDragUpdate: (details) =>
@@ -276,109 +281,29 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                     onTap: () {},
                     child: ContextMenuOverlay(
                       onDismiss: () => editorState.hideContextMenu(),
-                      onAddNode: () => addNode(
-                        name: "New Node",
-                        type: NodeType.static,
-                        inputPins: (id) => [
-                          Pin(
-                            nodeId: id,
-                            label: 'In',
-                            direction: PinDirection.input,
-                            type: PinType.exec,
-                          ),
-                          Pin(
-                            nodeId: id,
-                            label: 'In2',
-                            direction: PinDirection.input,
-                            type: PinType.value,
-                          ),
-                        ],
-                        outputPins: (id) => [
-                          Pin(
-                            nodeId: id,
-                            label: 'Out',
-                            direction: PinDirection.output,
-                            type: PinType.exec,
-                          ),
-                          Pin(
-                            nodeId: id,
-                            label: 'Out2',
-                            direction: PinDirection.output,
-                            type: PinType.value,
-                          ),
-                        ],
-                      ),
                       onAddColumnNode: () => addNode(
-                          name: "Column",
-                          type: NodeType.multiOutput,
-                          inputPins: (id) => [
-                                Pin(
-                                  nodeId: id,
-                                  label: 'In',
-                                  direction: PinDirection.input,
-                                  type: PinType.render,
-                                ),
-                              ],
-                          outputPins: (id) => [
-                                Pin(
-                                  nodeId: id,
-                                  label: 'child1',
-                                  direction: PinDirection.output,
-                                  type: PinType.render,
-                                ),
-                                Pin(
-                                  nodeId: id,
-                                  label: 'child2',
-                                  direction: PinDirection.output,
-                                  type: PinType.render,
-                                ),
-                              ],
-                          renderer: ColumnNodeRenderer()),
+                        node: (id, position) => ColumnNode(
+                          id: id,
+                          position: position,
+                        ),
+                      ),
                       onAddRowNode: () => addNode(
-                          name: "Row",
-                          type: NodeType.multiOutput,
-                          inputPins: (id) => [
-                                Pin(
-                                  nodeId: id,
-                                  label: 'In',
-                                  direction: PinDirection.input,
-                                  type: PinType.render,
-                                ),
-                              ],
-                          outputPins: (id) => [
-                                Pin(
-                                  nodeId: id,
-                                  label: 'child1',
-                                  direction: PinDirection.output,
-                                  type: PinType.render,
-                                ),
-                                Pin(
-                                  nodeId: id,
-                                  label: 'child2',
-                                  direction: PinDirection.output,
-                                  type: PinType.render,
-                                ),
-                              ],
-                          renderer: RowNodeRenderer()),
+                        node: (id, position) => RowNode(
+                          id: id,
+                          position: position,
+                        ),
+                      ),
                       onAddTextNode: () => addNode(
-                        name: "Text",
-                        type: NodeType.static,
-                        inputPins: (id) => [
-                          Pin(
-                            nodeId: id,
-                            label: 'In',
-                            direction: PinDirection.input,
-                            type: PinType.render,
-                          ),
-                          Pin(
-                            nodeId: id,
-                            label: 'Text',
-                            direction: PinDirection.input,
-                            type: PinType.value,
-                          ),
-                        ],
-                        outputPins: (id) => [],
-                        renderer: TextNodeRenderer(),
+                        node: (id, position) => TextNode(
+                          id: id,
+                          position: position,
+                        ),
+                      ),
+                      onAddStringNode: () => addNode(
+                        node: (id, position) => StringNode(
+                          id: id,
+                          position: position,
+                        ),
                       ),
                     ),
                   ),
@@ -391,11 +316,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
   }
 
   void addNode({
-    required String name,
-    required NodeType type,
-    required List<Pin> Function(String id) inputPins,
-    required List<Pin> Function(String id) outputPins,
-    NodeRenderer? renderer,
+    required Node Function(String id, Offset position) node,
   }) {
     var editorState = context.read<BlueprintEditorState>();
     if (editorState.contextMenuPosition == null) return;
@@ -405,15 +326,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
       editorState.contextMenuPosition!,
     );
     editorState.addNode(
-      Node(
-        id: newNodeId,
-        type: type,
-        renderer: renderer,
-        title: '$name ${editorState.nodes.length + 1}',
-        position: worldPos,
-        inputPins: inputPins(newNodeId),
-        outputPins: outputPins(newNodeId),
-      ),
+      node(newNodeId, worldPos),
     );
     editorState.hideContextMenu();
   }

@@ -35,16 +35,15 @@ class PinWidget extends StatelessWidget {
 
     // Check if this pin is connected
     bool isConnected = editorState.connections.any(
-      (conn) => conn.startPinKey == pin.key || conn.endPinKey == pin.key,
+      (conn) => conn.startPin == pin.key || conn.endPin == pin.key,
     );
 
     // Check if this pin is the potential end target of a drag
     bool isPotentialTarget = false;
-    if (editorState.dragStartPinKey != null &&
-        editorState.dragStartPinKey != pin.key) {
-      final startPin = editorState.findPinByKey(editorState.dragStartPinKey!);
+    if (editorState.dragStartPin != null && editorState.dragStartPin != pin) {
+      final startPin = editorState.dragStartPin!;
       // Can only connect output to input or vice-versa
-      if (startPin != null && startPin.direction != pin.direction) {
+      if (startPin.direction != pin.direction) {
         // Check if mouse is over this pin during drag
         final RenderBox? pinRenderBox =
             context.findRenderObject() as RenderBox?;
@@ -79,18 +78,18 @@ class PinWidget extends StatelessWidget {
     return GestureDetector(
       // Add right click handler
       onSecondaryTapUp: (details) {
-        blueprintState.removeConnectionsForPin(pin.key);
+        blueprintState.removeConnectionsForPin(pin);
       },
       // --- Connection Drag Handling ---
       behavior: HitTestBehavior.opaque,
       onPanStart: (details) {
         // Get the global position of the center of the pin widget
-        var pinPosition = editorState.getPinGlobalPosition(pin.key)!;
+        var pinPosition = editorState.getPinGlobalPosition(pin)!;
         var mousePosition =
             pinPosition + details.localPosition - Offset(pinSize, pinSize / 2);
 
         editorState.startDraggingConnection(
-          pin.key,
+          pin,
           pinPosition,
           mousePosition,
           pin.direction,
@@ -108,11 +107,11 @@ class PinWidget extends StatelessWidget {
         child: MouseRegion(
           onEnter: (event) {
             print("Entering pin: ${pin.label}");
-            editorState.setHoverPinKey(pin.key);
+            editorState.setHoverPinKey(pin);
           },
           onHover: (event) {
             print("Hovering over pin: ${pin.label}");
-            editorState.setHoverPinKey(pin.key);
+            editorState.setHoverPinKey(pin);
           },
           onExit: (event) {
             print("Exiting pin: ${pin.label}");

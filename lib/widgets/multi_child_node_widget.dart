@@ -6,7 +6,7 @@ import '../models/node.dart';
 import 'pin_widget.dart';
 
 class MultiOutputNodeWidget extends StatelessWidget {
-  final Node node;
+  final MultiOutputNode node;
   final Function(DragUpdateDetails) onDragUpdate;
   final Function(DragEndDetails)? onDragEnd;
 
@@ -39,6 +39,7 @@ class MultiOutputNodeWidget extends StatelessWidget {
             },
             onPanUpdate: onDragUpdate,
             onPanEnd: onDragEnd,
+            onTap: () => editorState.selectNode(node.id, multiSelect: false),
             child: Material(
               elevation: node.isSelected ? 8.0 : 4.0,
               borderRadius: BorderRadius.circular(8.0),
@@ -91,15 +92,7 @@ class MultiOutputNodeWidget extends StatelessWidget {
                       right: 8,
                       child: GestureDetector(
                         onTap: () {
-                          node.outputPins.add(
-                            Pin(
-                              nodeId: node.id,
-                              label: "Output ${node.outputPins.length + 1}",
-                              type: PinType.render,
-                              direction: PinDirection.output,
-                            ),
-                          );
-                          node.calculatePinPositions();
+                          node.addOutputRenderPin();
                           editorState.notifyListeners();
                         },
                         child: Container(

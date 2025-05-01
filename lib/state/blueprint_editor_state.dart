@@ -16,7 +16,7 @@ class BlueprintEditorState extends ChangeNotifier {
   // For drawing temporary connection line
   Offset? _dragStartPinPosition;
   Offset? _dragCurrentPosition;
-  PinKey? _dragStartPinKey;
+  Pin? _dragStartPin;
   PinDirection? dragStartPinDirection;
 
   Iterable<Node> get nodes => _blueprintState.nodes;
@@ -29,10 +29,10 @@ class BlueprintEditorState extends ChangeNotifier {
 
   Offset? get dragStartPinPosition => _dragStartPinPosition;
   Offset? get dragCurrentPosition => _dragCurrentPosition;
-  PinKey? get dragStartPinKey => _dragStartPinKey;
+  Pin? get dragStartPin => _dragStartPin;
 
-  PinKey? _currentHoverPinKey;
-  PinKey? get currentHoverPinKey => _currentHoverPinKey;
+  Pin? _currentHoverPin;
+  Pin? get currentHoverPin => _currentHoverPin;
 
   // Add these properties for context menu
   Offset? _contextMenuPosition;
@@ -43,6 +43,9 @@ class BlueprintEditorState extends ChangeNotifier {
 
   Connection? _hoveredConnection;
   Connection? get hoveredConnection => _hoveredConnection;
+
+  // errors map
+  final Map<String, String?> _nodeErrors = {};
 
   BlueprintEditorState(this._blueprintState);
 
@@ -72,8 +75,8 @@ class BlueprintEditorState extends ChangeNotifier {
     _blueprintState.removeNode(nodeId);
   }
 
-  void setHoverPinKey(PinKey? pinKey) {
-    _currentHoverPinKey = pinKey;
+  void setHoverPinKey(Pin? pin) {
+    _currentHoverPin = pin;
     notifyListeners();
   }
 
@@ -124,6 +127,20 @@ class BlueprintEditorState extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
+  String? getNodeError(String nodeId) {
+    return _nodeErrors[nodeId];
+  }
+
+  void setNodeError(String nodeId, String? error) {
+    _nodeErrors[nodeId] = error;
+    notifyListeners();
+  }
+
+  void clearNodeErrors() {
+    _nodeErrors.clear();
+    notifyListeners();
+  }
+
   // --- Canvas Management ---
   void panCanvas(Offset delta) {
     _canvasOffset -= delta / _scale;
@@ -132,12 +149,12 @@ class BlueprintEditorState extends ChangeNotifier {
 
   // --- Connection Management ---
   void startDraggingConnection(
-    PinKey pinKey,
+    Pin pin,
     Offset startPosition,
     Offset mousePosition,
     PinDirection direction,
   ) {
-    _dragStartPinKey = pinKey;
+    _dragStartPin = pin;
     _dragStartPinPosition = startPosition;
     _dragCurrentPosition = mousePosition; // Initialize current pos
     dragStartPinDirection = direction;
@@ -159,38 +176,31 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void endDraggingConnection() {
-    var endPinKey = currentHoverPinKey;
-    if (_dragStartPinKey != null &&
+    var endPinKey = currentHoverPin;
+    if (_dragStartPin != null &&
         endPinKey != null &&
-        _dragStartPinKey != endPinKey) {
+        _dragStartPin != endPinKey) {
       // Get both pins
-      var startPin = _blueprintState.findPinByKey(_dragStartPinKey!);
-      var endPin = _blueprintState.findPinByKey(endPinKey);
+      var startPin = _dragStartPin!;
+      var endPin = endPinKey;
 
-      if (startPin != null &&
-          endPin != null &&
-          startPin.direction != endPin.direction &&
+      if (startPin.direction != endPin.direction &&
           startPin.type == endPin.type) {
         // Add type check
         // Determine correct start/end based on direction
-        final outputPinKey = (startPin.direction == PinDirection.output)
-            ? _dragStartPinKey!
+        final outputPin = (startPin.direction == PinDirection.output)
+            ? _dragStartPin!
             : endPinKey;
-        final inputPinKey = (startPin.direction == PinDirection.input)
-            ? _dragStartPinKey!
+        final inputPin = (startPin.direction == PinDirection.input)
+            ? _dragStartPin!
             : endPinKey;
 
-        var newConn =
-            Connection(startPinKey: outputPinKey, endPinKey: inputPinKey);
-        startPin.addConnection(newConn);
-        endPin.addConnection(newConn);
-        print("Adding connection: $outputPinKey -> $inputPinKey");
-
+        var newConn = Connection(startPin: outputPin, endPin: inputPin);
         _blueprintState.addConnection(newConn);
       }
     }
     // Reset dragging state
-    _dragStartPinKey = null;
+    _dragStartPin = null;
     _dragStartPinPosition = null;
     _dragCurrentPosition = null;
     dragStartPinDirection = null;
@@ -198,17 +208,14 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   // Get the global position of a pin
-  Offset? getPinGlobalPosition(PinKey pinKey) {
-    final pin = _blueprintState.findPinByKey(pinKey);
-    if (pin != null) {
-      final node = _blueprintState.findNodeById(pin.nodeId);
-      if (node != null) {
-        // Pin position is relative to node's top-left + node position + canvas offset
-        return node.position +
-            const Offset(8, 8) + // padding TODO: remove
-            pin.relativePosition +
-            const Offset(6, 6); // center location
-      }
+  Offset? getPinGlobalPosition(Pin pin) {
+    final node = _blueprintState.findNodeById(pin.nodeId);
+    if (node != null) {
+      // Pin position is relative to node's top-left + node position + canvas offset
+      return node.position +
+          const Offset(8, 8) + // padding TODO: remove
+          pin.relativePosition +
+          const Offset(6, 6); // center location
     }
     return null;
   }

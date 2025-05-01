@@ -7,51 +7,41 @@ import 'package:unreal_editor/models/node.dart';
 import 'package:unreal_editor/models/pin.dart';
 
 class BlueprintState with ChangeNotifier {
-  Node viewportNode = Node(
-      id: 'viewport',
-      title: 'Viewport',
-      position: Offset(100, 100),
-      inputPins: List.empty(),
-      outputPins: [
-        Pin(
-          nodeId: 'viewport',
-          label: "Render",
-          direction: PinDirection.output,
-          type: PinType.render,
-        ),
-      ],
-      renderer: ViewportNodeRenderer());
+  final Node viewportNode = ViewportNode(
+    id: 'viewport',
+    position: const Offset(100, 100),
+  );
 
-  final List<Node> nodes = [];
+  final List<Node> _nodes = [];
+  Iterable<Node> get nodes => _nodes;
+  final Map<String, Node> _nodeMap = {};
   final LinkedList<Connection> connections = LinkedList<Connection>();
 
   BlueprintState() {
-    nodes.add(viewportNode!);
+    addNode(viewportNode);
   }
 
   void removeConnection(Connection connection) {
     connections.remove(connection);
+    connection.startPin.onConnectionChanged();
+    connection.endPin.onConnectionChanged();
     notifyListeners();
   }
 
-  void removeConnectionsForPin(PinKey pinKey) {
+  void removeConnectionsForPin(Pin pin) {
     connections.removeWhere(
-      (conn) => conn.startPinKey == pinKey || conn.endPinKey == pinKey,
+      (conn) => conn.startPin == pin || conn.endPin == pin,
     );
     notifyListeners();
   }
 
   // --- Helpers ---
   Node? findNodeById(String id) {
-    try {
-      return nodes.firstWhere((node) => node.id == id);
-    } catch (e) {
-      return null;
-    }
+    return _nodeMap[id];
   }
 
   Pin? findPinByKey(PinKey key) {
-    for (var node in nodes) {
+    for (var node in _nodes) {
       for (var pin in node.allPins) {
         if (pin.key == key) {
           return pin;
@@ -69,8 +59,7 @@ class BlueprintState with ChangeNotifier {
     List<T> children = [];
     for (var pin in node.outputPins.where((pin) => pin.type == pinType)) {
       final connectedNodes = pin.connections
-          .map((conn) => findPinByKey(conn.endPinKey))
-          .nonNulls
+          .map((conn) => conn.endPin)
           .map((pin) => findNodeById(pin.nodeId))
           .whereType<Node>();
       for (var connectedNode in connectedNodes) {
@@ -87,21 +76,30 @@ class BlueprintState with ChangeNotifier {
   }
 
   void addConnection(Connection newConn) {
+    newConn.startPin.addConnection(newConn);
+    newConn.endPin.addConnection(newConn);
+    print(
+      "Adding connection: ${newConn.startPin.key} -> ${newConn.endPin.key}",
+    );
+
     connections.add(newConn);
+
+    newConn.startPin.onConnectionChanged();
+    newConn.endPin.onConnectionChanged();
     notifyListeners();
   }
 
   void addNode(Node node) {
-    nodes.add(node);
+    _nodes.add(node);
+    _nodeMap[node.id] = node;
     notifyListeners();
   }
 
   void removeNode(String nodeId) {
-    nodes.removeWhere((node) => node.id == nodeId);
+    _nodes.removeWhere((node) => node.id == nodeId);
     // Remove connections associated with the deleted node
     connections.removeWhere((conn) =>
-        conn.startPinKey.value.startsWith(nodeId) ||
-        conn.endPinKey.value.startsWith(nodeId));
+        conn.startPin.nodeId == nodeId || conn.endPin.nodeId == nodeId);
     notifyListeners();
   }
 }

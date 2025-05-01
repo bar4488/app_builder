@@ -1,6 +1,9 @@
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:unreal_editor/models/nodes/node_data.dart';
+import 'package:unreal_editor/state/blueprint_state.dart';
 import 'pin.dart';
 
 enum NodeType {
@@ -9,17 +12,21 @@ enum NodeType {
 }
 
 // Represents a node in the blueprint editor
-class Node {
+class Node with ChangeNotifier {
   final String id;
   String title;
+
   Offset position; // Top-left position on the canvas
   Size size; // Size of the node widget
+  String? error;
+
   final List<Pin> inputPins;
   final List<Pin> outputPins;
   bool isSelected;
   NodeType type;
 
-  final NodeRenderer? _renderer;
+  bool get isRenderable => renderData != null;
+  RenderData? get renderData => null;
 
   Node({
     required this.id,
@@ -30,10 +37,18 @@ class Node {
     List<Pin>? inputPins,
     List<Pin>? outputPins,
     this.isSelected = false,
-    NodeRenderer? renderer,
   })  : inputPins = inputPins ?? [],
-        outputPins = outputPins ?? [],
-        _renderer = renderer {
+        outputPins = outputPins ?? [] {
+    if (isRenderable) {
+      // add render pin to input at start of list
+      this.inputPins.insert(
+          0,
+          InputRenderPin(
+            nodeId: id,
+            label: "Render",
+            direction: PinDirection.input,
+          ));
+    }
     // Initialize pin positions
     calculatePinPositions();
   }
@@ -66,71 +81,216 @@ class Node {
             (type == NodeType.static ? 0 : 20));
   }
 
+  void addInputPin(Pin pin) {
+    inputPins.add(pin);
+    calculatePinPositions();
+  }
+
+  void addOutputPin(Pin pin) {
+    outputPins.add(pin);
+    calculatePinPositions();
+  }
+
   Rect get rect =>
       Rect.fromLTWH(position.dx, position.dy, size.width, size.height);
 
+  double get padding => 8.0;
+
   T matchType<T>({
-    required T Function() static,
-    required T Function() multiOutput,
+    required T Function(Node) static,
+    required T Function(MultiOutputNode) multiOutput,
   }) {
     switch (type) {
       case NodeType.static:
-        return static();
+        return static(this);
       case NodeType.multiOutput:
-        return multiOutput();
+        return multiOutput(this as MultiOutputNode);
     }
   }
 
-  NodeRenderer? getRenderer() {
-    return _renderer;
-  }
-
   Stream<String> getValueStream({required String inputPinLabel}) {
-    return Stream.value("${inputPinLabel} value");
+    var pin = inputPins.firstWhere(
+      (pin) => pin.label == inputPinLabel,
+      orElse: () => throw Exception("Pin not found"),
+    );
+    if (pin.type != PinType.value) {
+      throw Exception("Pin is not a value pin");
+    }
+
+    return getStreamFromValuePin(pin);
   }
-}
 
-abstract class NodeRenderer {
-  Widget buildNodeWidget(Node node, List<Widget> children);
-}
-
-class ColumnNodeRenderer extends NodeRenderer {
-  @override
-  Widget buildNodeWidget(Node node, List<Widget> children) {
-    return Column(
-      children: children,
+  Stream<String> getStreamFromValuePin(Pin pin) {
+    // This is a placeholder implementation. Replace with actual logic.
+    return Stream<String>.periodic(
+      const Duration(seconds: 1),
+      (count) => "Value from ${pin.label}: $count",
     );
   }
 }
 
-class RowNodeRenderer extends NodeRenderer {
+abstract class MultiOutputNode extends Node {
+  MultiOutputNode({
+    required super.id,
+    required super.title,
+    required super.position,
+    super.size, // Default size
+    super.inputPins,
+    super.outputPins,
+    super.isSelected,
+  }) : super(
+          type: NodeType.multiOutput,
+        );
+
+  void addOutputRenderPin();
+}
+
+class ViewportNode extends Node {
+  final RenderData _renderData;
+
+  String? childId;
+
+  ViewportNode({required super.id, required super.position})
+      : _renderData = ViewportRenderData(),
+        super(
+          title: "Viewport",
+          type: NodeType.static,
+        ) {
+    addOutputPin(
+      OutputRenderPin(
+        nodeId: id,
+        label: "Render",
+        direction: PinDirection.output,
+        onRenderTargetChanged: (childId) {
+          this.childId = childId;
+          notifyListeners();
+        },
+      ),
+    );
+  }
+
   @override
-  Widget buildNodeWidget(Node node, List<Widget> children) {
-    return Row(
-      children: children,
+  RenderData get renderData => _renderData;
+}
+
+class ColumnNode extends MultiOutputNode {
+  final RenderData _renderData;
+
+  @override
+  RenderData get renderData => _renderData;
+
+  final List<String?> children = [];
+
+  ValueNode<MainAxisAlignment> mainAxisAlignment =
+      const ConstValueNode<MainAxisAlignment>(MainAxisAlignment.start);
+
+  ColumnNode({required super.id, required super.position})
+      : _renderData = ColumnRenderData(),
+        super(
+          title: "Column",
+        ) {
+    addInputPin(
+      InputValuePin<MainAxisAlignment>(
+        nodeId: id,
+        label: "MainAxisAlignment",
+        onValueChanged: (output) {
+          mainAxisAlignment = output.toValueNode();
+          notifyListeners();
+        },
+      ),
+    );
+  }
+
+  @override
+  void addOutputRenderPin() {
+    children.add(null);
+    var index = children.length - 1;
+    addOutputPin(
+      OutputRenderPin(
+        nodeId: id,
+        label: "Output ${outputPins.length + 1}",
+        direction: PinDirection.output,
+        onRenderTargetChanged: (nodeId) {
+          children[index] = nodeId;
+          notifyListeners();
+        },
+      ),
     );
   }
 }
 
-class TextNodeRenderer extends NodeRenderer {
+class RowNode extends MultiOutputNode {
+  // final RenderData _renderData;
+
+  // @override
+  // RenderData get renderData => _renderData;
+
+  final List<Node> children = [];
+
+  ValueNode<MainAxisAlignment> mainAxisAlignment =
+      const ConstValueNode<MainAxisAlignment>(MainAxisAlignment.start);
+
+  RowNode({required super.id, required super.position})
+      // : _renderData = RowRenderData(),
+      : super(
+          title: "Row",
+        );
+
   @override
-  Widget buildNodeWidget(Node node, List<Widget> children) {
-    return StreamBuilder(
-      stream: node.getValueStream(inputPinLabel: "value"),
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return Text(snapshot.data!);
-        }
-        return Text("Invalid value");
-      },
+  void addOutputRenderPin() {
+    addOutputPin(
+      Pin(
+        nodeId: id,
+        label: "Output ${outputPins.length + 1}",
+        type: PinType.render,
+        direction: PinDirection.output,
+      ),
     );
-    return Text(node.title);
   }
 }
 
-class ViewportNodeRenderer extends NodeRenderer {
+class TextNode extends Node {
+  final RenderData _renderData;
+
   @override
-  Widget buildNodeWidget(Node node, List<Widget> children) {
-    return Center(child: children.firstOrNull ?? Text("No children"));
+  RenderData get renderData => _renderData;
+
+  ValueNode<String>? text;
+
+  TextNode({required super.id, required super.position})
+      : _renderData = TextRenderData(),
+        super(
+          title: "Text",
+          type: NodeType.static,
+        ) {
+    addInputPin(
+      InputValuePin<String>(
+        nodeId: id,
+        label: "value",
+        onValueChanged: (output) {
+          text = output.toValueNode();
+          notifyListeners();
+        },
+      ),
+    );
+  }
+}
+
+class StringNode extends Node {
+  ValueNode<String> value;
+
+  StringNode({required super.id, required super.position})
+      : value = InvalidValueNode(id, "String node doesnt have a value"),
+        super(
+          title: "String",
+          type: NodeType.static,
+        ) {
+    addOutputPin(
+      OutputValuePin<String>(
+        nodeId: id,
+        label: "value",
+        toValueNode: () => value,
+      ),
+    );
   }
 }

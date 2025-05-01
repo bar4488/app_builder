@@ -27,22 +27,22 @@ extension LinkedListExtension<T extends LinkedListEntry<T>> on LinkedList<T> {
 
 // Represents a connection between two pins
 final class Connection extends LinkedListEntry<Connection> {
-  final PinKey startPinKey;
-  final PinKey endPinKey;
+  final Pin startPin;
+  final Pin endPin;
   // Store path for hit testing later if needed
   Path? path;
   List<PathMetric>? pathMetrics;
 
-  Connection({required this.startPinKey, required this.endPinKey});
+  Connection({required this.startPin, required this.endPin});
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is Connection &&
           runtimeType == other.runtimeType &&
-          startPinKey == other.startPinKey &&
-          endPinKey == other.endPinKey;
+          startPin == other.startPin &&
+          endPin == other.endPin;
 
   @override
-  int get hashCode => startPinKey.hashCode ^ endPinKey.hashCode;
+  int get hashCode => startPin.hashCode ^ endPin.hashCode;
 }

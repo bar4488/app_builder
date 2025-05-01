@@ -65,15 +65,15 @@ class ConnectionPainter extends CustomPainter {
 
     // Draw existing connections
     for (final connection in editorState.connections) {
-      final startPin = editorState.findPinByKey(connection.startPinKey);
-      final endPin = editorState.findPinByKey(connection.endPinKey);
+      final startPin = connection.startPin;
+      final endPin = connection.endPin;
 
       if (startPin == null || endPin == null) continue;
 
       final startPinPos = editorState.getPinGlobalPosition(
-        connection.startPinKey,
+        connection.startPin,
       );
-      final endPinPos = editorState.getPinGlobalPosition(connection.endPinKey);
+      final endPinPos = editorState.getPinGlobalPosition(connection.endPin);
 
       if (startPinPos != null && endPinPos != null) {
         final path = _buildPath(startPinPos, endPinPos);

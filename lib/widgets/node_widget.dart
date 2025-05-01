@@ -20,8 +20,10 @@ class NodeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     // Recalculate pin positions if needed (e.g., if size changes, though fixed for now)
     // node.calculatePinPositions(); // Usually called when node created/resized
-    var padding = 8;
+    var padding = node.padding;
     var editorState = context.read<BlueprintEditorState>();
+
+    var nodeError = editorState.getNodeError(node.id);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -40,6 +42,7 @@ class NodeWidget extends StatelessWidget {
                 multiSelect: false,
               ); // Basic single selection
             },
+            onTap: () => editorState.selectNode(node.id, multiSelect: false),
             onPanUpdate: onDragUpdate,
             onPanEnd: onDragEnd,
             child: Material(
@@ -148,6 +151,20 @@ class NodeWidget extends StatelessWidget {
             ),
           ),
         ),
+        // error text
+        if (nodeError != null)
+          Positioned(
+            left: padding + 6 + 2,
+            right: padding + 6 + 2,
+            child: Text(
+              nodeError,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.red,
+              ),
+            ),
+          ),
       ],
     );
   }
