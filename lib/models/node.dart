@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:unreal_editor/models/nodes/node_data.dart';
+import 'package:unreal_editor/models/nodes/node_settigns.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 import 'pin.dart';
 
@@ -27,6 +28,7 @@ class Node with ChangeNotifier {
 
   bool get isRenderable => renderData != null;
   RenderData? get renderData => null;
+  NodeSettigns? get settings => null;
 
   Node({
     required this.id,
@@ -181,7 +183,10 @@ class ColumnNode extends MultiOutputNode {
 
   final List<String?> children = [];
 
-  ValueNode<MainAxisAlignment> mainAxisAlignment =
+  ValueNode<MainAxisAlignment>? _mainAxisAlignment;
+
+  ValueNode<MainAxisAlignment> get mainAxisAlignment =>
+      _mainAxisAlignment ??
       const ConstValueNode<MainAxisAlignment>(MainAxisAlignment.start);
 
   ColumnNode({required super.id, required super.position})
@@ -194,7 +199,7 @@ class ColumnNode extends MultiOutputNode {
         nodeId: id,
         label: "MainAxisAlignment",
         onValueChanged: (output) {
-          mainAxisAlignment = output.toValueNode();
+          _mainAxisAlignment = output?.value;
           notifyListeners();
         },
       ),
@@ -268,7 +273,7 @@ class TextNode extends Node {
         nodeId: id,
         label: "value",
         onValueChanged: (output) {
-          text = output.toValueNode();
+          text = output?.value;
           notifyListeners();
         },
       ),
@@ -277,20 +282,22 @@ class TextNode extends Node {
 }
 
 class StringNode extends Node {
-  ValueNode<String> value;
+  NodeSettigns _settigns;
+  @override
+  NodeSettigns get settings => _settigns;
+
+  late OutputValuePin<String> valuePin;
 
   StringNode({required super.id, required super.position})
-      : value = InvalidValueNode(id, "String node doesnt have a value"),
+      : _settigns = StringNodeSettigns(),
         super(
           title: "String",
           type: NodeType.static,
         ) {
-    addOutputPin(
-      OutputValuePin<String>(
-        nodeId: id,
-        label: "value",
-        toValueNode: () => value,
-      ),
+    valuePin = OutputValuePin<String>(
+      nodeId: id,
+      label: "value",
     );
+    addOutputPin(valuePin);
   }
 }

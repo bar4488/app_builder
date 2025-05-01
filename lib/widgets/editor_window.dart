@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 import 'package:unreal_editor/widgets/preview_panel.dart';
+import 'package:unreal_editor/widgets/settings_panel.dart';
 import '../state/blueprint_editor_state.dart';
 import 'blueprint_editor_widget.dart';
 
@@ -74,15 +75,17 @@ class _EditorWindowState extends State<EditorWindow> {
             ),
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: _rightDrawerOpen ? 250 : 0,
-              child: _rightDrawerOpen
-                  ? Container(
-                      color: Theme.of(context).colorScheme.surface,
-                      child: const Center(
-                        child: Text('Right Panel'),
-                      ),
-                    )
-                  : null,
+              width: _rightDrawerOpen ? 300 : 0,
+              child: UnconstrainedBox(
+                clipBehavior: Clip.antiAlias,
+                alignment: Alignment.topLeft,
+                child: Container(
+                  alignment: Alignment.centerLeft,
+                  width: 300,
+                  color: Theme.of(context).colorScheme.surface,
+                  child: SettingsPanel(),
+                ),
+              ),
             ),
           ],
         ),

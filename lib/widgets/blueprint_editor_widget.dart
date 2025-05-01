@@ -7,7 +7,6 @@ import 'package:unreal_editor/widgets/multi_child_node_widget.dart';
 import 'dart:async';
 
 import '../models/node.dart';
-import '../models/pin.dart';
 import '../painters/connection_painter.dart';
 import '../painters/grid_painter.dart';
 import '../state/blueprint_editor_state.dart';
@@ -33,15 +32,12 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
   void _handleNodeDrag(
       BuildContext context, DragUpdateDetails details, String nodeId) {
     final editorState = context.read<BlueprintEditorState>();
-    final blueprintState = context.read<BlueprintState>();
     final RenderBox box = context.findRenderObject() as RenderBox;
     final Size size = box.size;
     final node = editorState.findNodeById(nodeId)!;
     final Offset position = editorState.worldToScreen(node.position +
         Offset(node.padding + 4, node.padding + 4) +
         details.localPosition);
-    // print("render box size: $size, position: $position");
-    // return;
     const scrollArea = 60.0; // pixels from edge that triggers scrolling
     const scrollSpeed = 15.0; // pixels per scroll
 
@@ -69,9 +65,6 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
         editorState.panCanvas(scrollDelta);
         // Also move the node to maintain relative position
         editorState.moveNode(nodeId, -scrollDelta / editorState.scale);
-        print(
-          "Auto-scrolling: $scrollDelta, new node position: ${editorState.findNodeById(nodeId)?.position}",
-        );
       });
     } else {
       _autoScrollTimer?.cancel();
@@ -79,9 +72,6 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
 
     // Move the node with the drag
     editorState.moveNode(nodeId, details.delta);
-    print(
-      "moving, new node position: ${editorState.findNodeById(nodeId)?.position}",
-    );
   }
 
   @override
@@ -104,8 +94,6 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                     final painter = ConnectionPainter(
                       editorState: editorState,
                     );
-                    final RenderBox box =
-                        context.findRenderObject() as RenderBox;
                     final localPosition = event.localPosition;
                     final hitConnection = painter.getConnectionAtPoint(
                       editorState.screenToWorld(localPosition),
@@ -130,11 +118,6 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                     },
                     onPanStart: (details) {
                       _lastPanPosition = details.globalPosition;
-                      final RenderBox box =
-                          context.findRenderObject() as RenderBox;
-                      final localPosition = box.globalToLocal(
-                        details.globalPosition,
-                      );
                       editorState.deselectAllNodes();
                     },
                     onTap: () => editorState.deselectAllNodes(),
@@ -176,7 +159,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                       }
                     },
                     child: Container(
-                      constraints: BoxConstraints.expand(),
+                      constraints: const BoxConstraints.expand(),
                       child: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -259,11 +242,13 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                               ),
                             ),
                           ),
-                          Text(
-                            "${editorState.canvasOffset}\nScale: ${editorState.scale}",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
+                          IgnorePointer(
+                            child: Text(
+                              "${editorState.canvasOffset}\nScale: ${editorState.scale}",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                              ),
                             ),
                           ),
                         ],

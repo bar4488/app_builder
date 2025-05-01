@@ -47,6 +47,8 @@ class BlueprintEditorState extends ChangeNotifier {
   // errors map
   final Map<String, String?> _nodeErrors = {};
 
+  Node? selectedNode;
+
   BlueprintEditorState(this._blueprintState);
 
   void setHoveredConnection(Connection? connection) {
@@ -103,21 +105,22 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void selectNode(String nodeId, {bool multiSelect = false}) {
+    final node = findNodeById(nodeId)!;
     if (!multiSelect) {
       for (var node in nodes) {
         node.isSelected = false;
       }
+      selectedNode = node; // only save selected node in case of single select
+    } else {
+      selectedNode = null; // Deselect if already selected
     }
-    final node = nodes.firstWhere(
-      (n) => n.id == nodeId,
-      orElse: () => throw Exception("Node not found"),
-    );
     node.isSelected = true; // Toggle selection could be added later
     notifyListeners();
   }
 
   void deselectAllNodes() {
     bool changed = false;
+    selectedNode = null;
     for (var node in nodes) {
       if (node.isSelected) {
         node.isSelected = false;
