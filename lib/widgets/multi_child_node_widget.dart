@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/state/blueprint_editor_state.dart';
 import '../models/node.dart';
 import 'pin_widget.dart';
@@ -71,7 +70,7 @@ class MultiOutputNodeWidget extends StatelessWidget {
                           horizontal: 10.0,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(7.0),
                             topRight: Radius.circular(7.0),
@@ -97,7 +96,7 @@ class MultiOutputNodeWidget extends StatelessWidget {
                         },
                         child: Container(
                           padding: const EdgeInsets.all(4.0),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: Colors.lightBlueAccent,
                             shape: BoxShape.circle,
                           ),

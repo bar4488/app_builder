@@ -49,15 +49,10 @@ class ConnectionPainter extends CustomPainter {
     return null;
   }
 
-  // @override
-  // bool? hitTest(Offset position) {
-  //   return getConnectionAtPoint(position) != null;
-  // }
-
   @override
   void paint(Canvas canvas, Size size) {
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.3)
+      ..color = Colors.black.withAlpha((0.3 * 255).toInt())
       ..strokeWidth = 4.0
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
@@ -66,9 +61,6 @@ class ConnectionPainter extends CustomPainter {
     // Draw existing connections
     for (final connection in editorState.connections) {
       final startPin = connection.startPin;
-      final endPin = connection.endPin;
-
-      if (startPin == null || endPin == null) continue;
 
       final startPinPos = editorState.getPinGlobalPosition(
         connection.startPin,

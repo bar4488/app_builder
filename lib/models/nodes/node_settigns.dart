@@ -12,6 +12,7 @@ class StringNodeSettigns extends NodeSettigns<StringNode> {
   String? value;
   StringNodeSettigns();
 
+  @override
   Widget buildSettingsWidget(BuildContext context, StringNode node) {
     // build a widget to edit the string value
     return TextField(

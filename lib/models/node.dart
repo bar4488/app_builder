@@ -1,10 +1,8 @@
-import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:unreal_editor/models/nodes/node_data.dart';
 import 'package:unreal_editor/models/nodes/node_settigns.dart';
-import 'package:unreal_editor/state/blueprint_state.dart';
 import 'pin.dart';
 
 enum NodeType {

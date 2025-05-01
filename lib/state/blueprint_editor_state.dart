@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 import 'package:flutter/material.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 import '../models/node.dart';

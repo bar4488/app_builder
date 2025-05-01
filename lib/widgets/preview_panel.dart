@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/models/nodes/node_data.dart';
-import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/state/blueprint_editor_state.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
