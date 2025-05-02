@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
-import 'package:app_builder/models/node_settigns.dart';
+import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/pin.dart';
 import 'package:app_builder/models/variable.dart';
 

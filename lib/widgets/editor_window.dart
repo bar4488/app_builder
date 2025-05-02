@@ -78,9 +78,13 @@ class EditorWindow extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   width: 300,
                   color: Theme.of(context).colorScheme.surface,
-                  child: const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: SettingsPanel(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: FocusTraversalGroup(
+                      child: SettingsPanel(
+                        key: windowState.settingsPanelKey,
+                      ),
+                    ),
                   ),
                 ),
               ),

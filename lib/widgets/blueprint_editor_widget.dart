@@ -1,8 +1,10 @@
+import 'package:app_builder/models/pin.dart';
+import 'package:app_builder/state/editor_window_state.dart';
+import 'package:app_builder/widgets/editor_window.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:app_builder/models/nodes.dart';
 import 'package:app_builder/state/blueprint_state.dart';
 import 'package:app_builder/widgets/context_menu_overlay.dart';
 import 'dart:async';
@@ -311,9 +313,11 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                       behavior: HitTestBehavior.opaque,
                       onTap: () {},
                       child: ContextMenuOverlay(
+                        startPin: editorState.contextMenuStartPin,
                         onDismiss: () => editorState.hideContextMenu(),
                         onAddNode: (type) => addNode(
-                          node: (id, position) =>
+                          startPin: editorState.contextMenuStartPin,
+                          nodeBuilder: (id, position) =>
                               type.nodeBuilder(id, position),
                         ),
                       ),
@@ -328,7 +332,8 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
   }
 
   void addNode({
-    required Node Function(String id, Offset position) node,
+    Pin? startPin,
+    required Node Function(String id, Offset position) nodeBuilder,
   }) {
     var editorState = context.read<BlueprintEditorState>();
     if (editorState.contextMenuPosition == null) return;
@@ -337,9 +342,19 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
     final worldPos = editorState.screenToWorld(
       editorState.contextMenuPosition!,
     );
+    final node = nodeBuilder(newNodeId, worldPos);
     editorState.addNode(
-      node(newNodeId, worldPos),
+      node,
     );
+
+    if (startPin != null) {
+      var endPin = node.getPinFor(startPin);
+      if (endPin != null) {
+        editorState.tryAddConnection(startPin, endPin);
+      }
+    }
+    editorState.selectNode(node.id);
+    context.read<EditorWindowState>().focusNodeSettings();
     editorState.hideContextMenu();
   }
 

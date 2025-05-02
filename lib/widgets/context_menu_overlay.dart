@@ -1,13 +1,16 @@
+import 'package:app_builder/models/pin.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/nodes.dart';
 import 'package:app_builder/utils/string_extensions.dart';
 
 class ContextMenuOverlay extends StatefulWidget {
   final VoidCallback onDismiss;
+  final Pin? startPin;
   final void Function(NodeType nodeType) onAddNode;
 
   const ContextMenuOverlay({
     super.key,
+    this.startPin,
     required this.onDismiss,
     required this.onAddNode,
   });
@@ -30,6 +33,9 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
     _menuItems = {};
     for (final nodeType in nodeTypes) {
       if (nodeType.category == NodeCategory.internal) continue;
+      if (widget.startPin != null && !nodeType.canConnectTo(widget.startPin!)) {
+        continue;
+      }
       _menuItems[nodeType.category] ??= [];
       _menuItems[nodeType.category]!.add(MenuItemData(
         title: nodeType.name,

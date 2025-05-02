@@ -1,3 +1,4 @@
+import 'package:app_builder/state/editor_window_state.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_builder/models/node.dart';
@@ -26,9 +27,12 @@ class SettingsPanel extends StatelessWidget {
         ),
       );
     } else {
-      return selectedNode.settings!.buildSettingsWidget(
-        context,
-        selectedNode,
+      return Center(
+        key: ValueKey(selectedNode),
+        child: selectedNode.settings!.buildSettingsWidget(
+          context,
+          selectedNode,
+        ),
       );
     }
   }

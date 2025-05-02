@@ -34,8 +34,10 @@ class BlueprintEditorState extends ChangeNotifier {
 
   // Add these properties for context menu
   Offset? _contextMenuPosition;
-  bool _disableContextMenuHide = false;
   Offset? get contextMenuPosition => _contextMenuPosition;
+
+  Pin? _contextMenuStartPin;
+  Pin? get contextMenuStartPin => _contextMenuStartPin;
 
   static const double stackWidth = 4000.0;
   static const double stackHeight = 4000.0;
@@ -68,16 +70,7 @@ class BlueprintEditorState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void disableContextMenuHide() {
-    _disableContextMenuHide = true;
-  }
-
-  void enableContextMenuHide() {
-    _disableContextMenuHide = false;
-  }
-
   void hideContextMenu() {
-    if (_disableContextMenuHide) return;
     _contextMenuPosition = null;
     notifyListeners();
   }
@@ -88,12 +81,12 @@ class BlueprintEditorState extends ChangeNotifier {
     _blueprintState.addNode(node);
   }
 
-  void deleteNode(String nodeId) {
-    _blueprintState.removeNode(nodeId);
-  }
-
   void deleteSelectedNodes() {
     _blueprintState.removeSelectedNodes();
+    if (selectedNode != null) {
+      selectedNode = null;
+      notifyListeners();
+    }
   }
 
   void setHoverPin(Pin? pin) {
@@ -223,34 +216,43 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void endDraggingConnection() {
-    var endPinKey = currentHoverPin;
-    if (_dragStartPin != null &&
-        endPinKey != null &&
-        _dragStartPin != endPinKey) {
+    var startPin = _dragStartPin;
+    var endPin = currentHoverPin;
+    if (startPin != null && endPin != null && startPin != endPin) {
       // Get both pins
-      var startPin = _dragStartPin!;
-      var endPin = endPinKey;
-
-      if (startPin.direction != endPin.direction &&
-          startPin.type == endPin.type) {
-        // Add type check
-        // Determine correct start/end based on direction
-        final outputPin = (startPin.direction == PinDirection.output)
-            ? _dragStartPin!
-            : endPinKey;
-        final inputPin = (startPin.direction == PinDirection.input)
-            ? _dragStartPin!
-            : endPinKey;
-
-        var newConn = Connection(startPin: outputPin, endPin: inputPin);
-        _blueprintState.addConnection(newConn);
-      }
+      _tryAddConnection(startPin, endPin);
+    } else if (startPin != null &&
+        endPin == null &&
+        _dragCurrentPosition != null) {
+      // the user dragged to an empty space, lets give him a helpful context menu
+      _contextMenuPosition = worldToScreen(_dragCurrentPosition!);
+      _contextMenuStartPin = startPin;
     }
     // Reset dragging state
     _dragStartPin = null;
     _dragStartPinPosition = null;
     _dragCurrentPosition = null;
     dragStartPinDirection = null;
+    notifyListeners();
+  }
+
+  void _tryAddConnection(Pin startPin, Pin endPin) {
+    if (startPin.direction != endPin.direction &&
+        startPin.type == endPin.type) {
+      // Add type check
+      // Determine correct start/end based on direction
+      final outputPin =
+          (startPin.direction == PinDirection.output) ? startPin! : endPin;
+      final inputPin =
+          (startPin.direction == PinDirection.input) ? startPin! : endPin;
+
+      var newConn = Connection(startPin: outputPin, endPin: inputPin);
+      _blueprintState.addConnection(newConn);
+    }
+  }
+
+  void tryAddConnection(Pin startPin, Pin endPin) {
+    _tryAddConnection(startPin, endPin);
     notifyListeners();
   }
 

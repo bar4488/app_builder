@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/render_data.dart';
-import 'package:app_builder/models/node_settigns.dart';
+import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/variable.dart';
 import 'pin.dart';
 
@@ -184,6 +184,38 @@ class Node with ChangeNotifier {
   Iterable<RenderTarget> getRenderTargets() {
     return [];
   }
+
+  InputValuePin? getInputValuePin(Type type) {
+    return inputPins
+        .whereType<InputValuePin>()
+        .where((e) => e.valueType == type)
+        .single;
+  }
+
+  OutputValuePin? getOutputValuePin(Type type) {
+    return outputPins
+        .whereType<OutputValuePin>()
+        .where((e) => e.valueType == type)
+        .single;
+  }
+
+  InputRenderPin? getInputRenderPin() {
+    return inputRenderPin!;
+  }
+
+  OutputRenderPin? getOutputRenderPin() {
+    return outputPins.whereType<OutputRenderPin>().single;
+  }
+
+  Pin? getPinFor(Pin other) {
+    return switch (other) {
+      InputValuePin() => getOutputValuePin(other.valueType),
+      OutputValuePin() => getInputValuePin(other.valueType),
+      InputRenderPin() => getOutputRenderPin(),
+      OutputRenderPin() => getInputRenderPin(),
+      _ => throw TypeError(),
+    };
+  }
 }
 
 abstract class MultiOutputNode extends Node {
@@ -201,4 +233,11 @@ abstract class MultiOutputNode extends Node {
         );
 
   OutputRenderPin addOutputRenderPin();
+
+  @override
+  OutputRenderPin? getOutputRenderPin() {
+    var pins = outputPins.whereType<OutputRenderPin>();
+    if (pins.length > 1) throw Exception("ambiguous output render pin");
+    return pins.firstOrNull ?? addOutputRenderPin();
+  }
 }

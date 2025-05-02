@@ -103,6 +103,7 @@ class OutputValuePin<T> extends Pin {
   // void Function(InputValuePin input)? onValueChanged;
 
   ValueNode<T>? _value;
+  Type get valueType => T;
 
   OutputValuePin({
     required String nodeId,
@@ -140,6 +141,7 @@ class OutputValuePin<T> extends Pin {
 
 class InputValuePin<T> extends Pin {
   void Function(ValueNode<T>? newVal)? onValueChanged;
+  Type get valueType => T;
 
   InputValuePin({
     required String nodeId,

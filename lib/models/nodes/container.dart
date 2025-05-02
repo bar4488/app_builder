@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/render_data.dart';
-import 'package:app_builder/models/node_settigns.dart';
+import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/variable.dart';
 import 'package:app_builder/state/blueprint_state.dart';
 import 'package:app_builder/utils/colors.dart';

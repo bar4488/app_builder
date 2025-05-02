@@ -15,12 +15,14 @@ class EnumValueEditor<T> extends StatefulWidget {
   final NodeVariable<T> variable;
   final List<Widget>? prefixes;
   final Node node;
+  final FocusNode? focus;
 
   EnumValueEditor({
     super.key,
     required this.node,
     required this.variable,
     required this.enumValues,
+    this.focus,
     this.prefixes,
     this.label = "Enum Value",
   }) {
