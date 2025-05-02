@@ -100,7 +100,7 @@ class RowNodeSettigns extends NodeSettigns<RowNode> {
           enumValues: MainAxisAlignment.values
               .map(
                 (value) => MapEntry(
-                  value.toString(),
+                  value.name,
                   value,
                 ),
               )
@@ -112,7 +112,7 @@ class RowNodeSettigns extends NodeSettigns<RowNode> {
           enumValues: CrossAxisAlignment.values
               .map(
                 (value) => MapEntry(
-                  value.toString(),
+                  value.name,
                   value,
                 ),
               )
