@@ -81,14 +81,22 @@ class Node with ChangeNotifier {
             (type == NodeType.static ? 0 : 20));
   }
 
+  void removeInputPin(Pin pin) {
+    inputPins.remove(pin);
+    calculatePinPositions();
+    notifyListeners();
+  }
+
   void addInputPin(Pin pin) {
     inputPins.add(pin);
     calculatePinPositions();
+    notifyListeners();
   }
 
   void addOutputPin(Pin pin) {
     outputPins.add(pin);
     calculatePinPositions();
+    notifyListeners();
   }
 
   Rect get rect =>
@@ -200,17 +208,7 @@ class ColumnNode extends MultiOutputNode {
       : _renderData = ColumnRenderData(),
         super(
           title: "Column",
-        ) {
-    addInputPin(
-      InputValuePin<MainAxisAlignment>(
-        nodeId: id,
-        label: "MainAxisAlignment",
-        onValueChanged: (value) {
-          mainAxisAlignment.setValueNode(value);
-        },
-      ),
-    );
-  }
+        );
 
   @override
   void addOutputRenderPin() {

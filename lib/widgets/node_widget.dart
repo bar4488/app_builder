@@ -25,147 +25,152 @@ class NodeWidget extends StatelessWidget {
 
     var nodeError = editorState.getNodeError(node.id);
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          alignment: Alignment.center,
-          width: node.size.width + padding * 2,
-          height: node.size.height + padding * 2,
-          // color: Colors.white54,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanStart: (details) {
-              // Select node on drag start
-              editorState.selectNode(
-                node.id,
-                multiSelect: false,
-              ); // Basic single selection
-            },
-            onTap: () => editorState.selectNode(node.id, multiSelect: false),
-            onPanUpdate: onDragUpdate,
-            onPanEnd: onDragEnd,
-            child: Material(
-              elevation: node.isSelected ? 8.0 : 4.0,
-              borderRadius: BorderRadius.circular(8.0),
-              child: Container(
-                width: node.size.width,
-                height: node.size.height,
-                decoration: BoxDecoration(
-                  color: node.isSelected
-                      ? Colors.blueGrey[700]
-                      : Colors.blueGrey[900],
-                  borderRadius: BorderRadius.circular(8.0),
-                  border: Border.all(
-                    color: node.isSelected
-                        ? Colors.lightBlueAccent
-                        : Colors.grey[700]!,
-                    width: node.isSelected ? 2.0 : 1.0,
-                  ),
-                ),
-                child: Stack(
-                  clipBehavior:
-                      Clip.none, // Allow pins to draw outside bounds slightly
-                  children: [
-                    // Node Title
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 6.0,
-                          horizontal: 10.0,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.3),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(
-                              7.0,
-                            ), // Match container radius
-                            topRight: Radius.circular(7.0),
-                          ),
-                        ),
-                        child: Text(
-                          node.title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+    return ListenableBuilder(
+        listenable: node,
+        builder: (context, child) {
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                alignment: Alignment.center,
+                width: node.size.width + padding * 2,
+                height: node.size.height + padding * 2,
+                // color: Colors.white54,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (details) {
+                    // Select node on drag start
+                    editorState.selectNode(
+                      node.id,
+                      multiSelect: false,
+                    ); // Basic single selection
+                  },
+                  onTap: () =>
+                      editorState.selectNode(node.id, multiSelect: false),
+                  onPanUpdate: onDragUpdate,
+                  onPanEnd: onDragEnd,
+                  child: Material(
+                    elevation: node.isSelected ? 8.0 : 4.0,
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: Container(
+                      width: node.size.width,
+                      height: node.size.height,
+                      decoration: BoxDecoration(
+                        color: node.isSelected
+                            ? Colors.blueGrey[700]
+                            : Colors.blueGrey[900],
+                        borderRadius: BorderRadius.circular(8.0),
+                        border: Border.all(
+                          color: node.isSelected
+                              ? Colors.lightBlueAccent
+                              : Colors.grey[700]!,
+                          width: node.isSelected ? 2.0 : 1.0,
                         ),
                       ),
+                      child: Stack(
+                        clipBehavior: Clip
+                            .none, // Allow pins to draw outside bounds slightly
+                        children: [
+                          // Node Title
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6.0,
+                                horizontal: 10.0,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(
+                                    7.0,
+                                  ), // Match container radius
+                                  topRight: Radius.circular(7.0),
+                                ),
+                              ),
+                              child: Text(
+                                node.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-        ),
-        // Input Pins
-        ...node.inputPins.map(
-          (pin) => Positioned(
-            left: padding +
-                pin.relativePosition.dx -
-                6, // Center the pin visually
-            top: padding + pin.relativePosition.dy,
-            child: PinWidget(pin: pin),
-          ),
-        ),
-        // Input Pins labels:
-        ...node.inputPins.map(
-          (pin) => Positioned(
-            left: padding + 6 + 2, // Center the pin visually
-            top: padding + pin.relativePosition.dy - 2,
-            child: Text(
-              pin.label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white,
+              // Input Pins
+              ...node.inputPins.map(
+                (pin) => Positioned(
+                  left: padding +
+                      pin.relativePosition.dx -
+                      6, // Center the pin visually
+                  top: padding + pin.relativePosition.dy,
+                  child: PinWidget(pin: pin),
+                ),
               ),
-            ),
-          ),
-        ),
-        // Output Pins
-        ...node.outputPins.map(
-          (pin) => Positioned(
-            left: padding +
-                pin.relativePosition.dx -
-                6, // Center the pin visually
-            top: padding + pin.relativePosition.dy,
-            child: PinWidget(pin: pin),
-          ),
-        ),
-        // Output Pins labels:
-        ...node.outputPins.map(
-          (pin) => Positioned(
-            right: padding + 6 + 2, // Center the pin visually
-            top: padding + pin.relativePosition.dy - 2,
-            child: Text(
-              pin.label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white,
-                textBaseline: TextBaseline.alphabetic,
+              // Input Pins labels:
+              ...node.inputPins.map(
+                (pin) => Positioned(
+                  left: padding + 6 + 2, // Center the pin visually
+                  top: padding + pin.relativePosition.dy - 2,
+                  child: Text(
+                    pin.label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-        // error text
-        if (nodeError != null)
-          Positioned(
-            left: padding + 6 + 2,
-            right: padding + 6 + 2,
-            child: Text(
-              nodeError,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.red,
+              // Output Pins
+              ...node.outputPins.map(
+                (pin) => Positioned(
+                  left: padding +
+                      pin.relativePosition.dx -
+                      6, // Center the pin visually
+                  top: padding + pin.relativePosition.dy,
+                  child: PinWidget(pin: pin),
+                ),
               ),
-            ),
-          ),
-      ],
-    );
+              // Output Pins labels:
+              ...node.outputPins.map(
+                (pin) => Positioned(
+                  right: padding + 6 + 2, // Center the pin visually
+                  top: padding + pin.relativePosition.dy - 2,
+                  child: Text(
+                    pin.label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.white,
+                      textBaseline: TextBaseline.alphabetic,
+                    ),
+                  ),
+                ),
+              ),
+              // error text
+              if (nodeError != null)
+                Positioned(
+                  left: padding + 6 + 2,
+                  right: padding + 6 + 2,
+                  child: Text(
+                    nodeError,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        });
   }
 }

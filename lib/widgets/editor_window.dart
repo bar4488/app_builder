@@ -85,8 +85,8 @@ class _EditorWindowState extends State<EditorWindow> {
                   alignment: Alignment.centerLeft,
                   width: 300,
                   color: Theme.of(context).colorScheme.surface,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8.0),
                     child: SettingsPanel(),
                   ),
                 ),

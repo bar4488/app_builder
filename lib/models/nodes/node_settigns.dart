@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:unreal_editor/models/node.dart';
 import 'package:unreal_editor/models/nodes/node_data.dart';
 import 'package:unreal_editor/models/pin.dart';
+import 'package:unreal_editor/state/blueprint_editor_state.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
 abstract class NodeSettigns<T extends Node> {
@@ -29,7 +30,18 @@ class ColumnNodeSettigns extends NodeSettigns<ColumnNode> {
   Widget buildSettingsWidget(BuildContext context, ColumnNode node) {
     return ListView(
       children: [
+        // EnumValueEditor<MainAxisAlignment>(
+        //   node: node,
+        //   variable: node.mainAxisAlignment,
+        //   enumValues: MainAxisAlignment.values.asMap().map(
+        //         (key, value) => MapEntry(
+        //           value.toString(),
+        //           value,
+        //         ),
+        //       ),
+        // ),
         EnumValueEditor<MainAxisAlignment>(
+          node: node,
           variable: node.mainAxisAlignment,
           enumValues: MainAxisAlignment.values.asMap().map(
                 (key, value) => MapEntry(
@@ -39,6 +51,7 @@ class ColumnNodeSettigns extends NodeSettigns<ColumnNode> {
               ),
         ),
         EnumValueEditor<CrossAxisAlignment>(
+          node: node,
           variable: node.crossAxisAlignment,
           enumValues: CrossAxisAlignment.values.asMap().map(
                 (key, value) => MapEntry(
@@ -56,9 +69,11 @@ class EnumValueEditor<T> extends StatefulWidget {
   final String label;
   final Map<String, T> enumValues;
   final NodeVariable<T> variable;
+  final Node node;
 
   const EnumValueEditor({
     super.key,
+    required this.node,
     required this.variable,
     required this.enumValues,
     this.label = "Enum Value",
@@ -78,24 +93,44 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<T>(
-      value: value,
-      decoration: InputDecoration(labelText: widget.label),
-      items: widget.enumValues.entries
-          .map((entry) => DropdownMenuItem<T>(
-                value: entry.value,
-                child: Text(entry.key),
-              ))
-          .toList(),
-      onChanged: (newValue) {
-        if (newValue != null) {
-          widget.variable.setValueNode(ConstValueNode(newValue));
-        } else {
-          widget.variable.setValueNode(null);
-        }
-        context.read<BlueprintState>().notifyListeners();
-      },
-    );
+    return ListenableBuilder(
+        listenable: widget.variable,
+        builder: (context, child) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<T>(
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: widget.label,
+                  ),
+                  items: widget.enumValues.entries
+                      .map((entry) => DropdownMenuItem<T>(
+                            value: entry.value,
+                            child: Text(
+                              entry.key,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ))
+                      .toList(),
+                  onChanged: widget.variable.inputPin != null
+                      ? null
+                      : (newValue) {
+                          if (newValue != null) {
+                            widget.variable
+                                .setValueNode(ConstValueNode(newValue));
+                          } else {
+                            widget.variable.setValueNode(null);
+                          }
+                        },
+                ),
+              ),
+              BindButton<T>(node: widget.node, variable: widget.variable)
+            ],
+          );
+        });
   }
 }
 
@@ -114,6 +149,38 @@ class StringValueEditor extends StatelessWidget {
         context.read<BlueprintState>().notifyListeners();
       },
       decoration: InputDecoration(labelText: label),
+    );
+  }
+}
+
+class BindButton<T> extends StatelessWidget {
+  final Node node;
+  final NodeVariable<T> variable;
+
+  const BindButton({super.key, required this.node, required this.variable});
+
+  @override
+  Widget build(BuildContext context) {
+    context.watch<BlueprintState>();
+    return IconButton(
+      icon: Icon(variable.inputPin == null ? Icons.link : Icons.link_off),
+      onPressed: () {
+        if (variable.inputPin != null) {
+          node.removeInputPin(variable.inputPin!);
+          variable.bindInputPin(null);
+          return;
+        }
+        var state = context.read<BlueprintState>();
+        var inputPin = InputValuePin<T>(
+          nodeId: node.id,
+          label: variable.name,
+          onValueChanged: (value) {
+            variable.setValueNode(value);
+          },
+        );
+        node.addInputPin(inputPin);
+        variable.bindInputPin(inputPin);
+      },
     );
   }
 }

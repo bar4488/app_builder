@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 import 'package:unreal_editor/models/node.dart';
+import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
 class NodeData {}
@@ -68,10 +69,12 @@ abstract class RenderData<T extends Node> {
   }
 }
 
-class NodeVariable<T> {
+class NodeVariable<T> with ChangeNotifier {
   String name;
   ValueNode<T>? _valueNode;
   T? defaultValue;
+  InputValuePin<T>? inputPin;
+  OutputValuePin<T>? outputPin;
 
   T? get valueOrNull {
     if (_valueNode == null) {
@@ -92,7 +95,11 @@ class NodeVariable<T> {
   }
 
   void setValueNode(ValueNode<T>? value) {
+    if (inputPin != null) {
+      throw Exception("Cannot set a value on a bounded variable '$name'!");
+    }
     _valueNode = value;
+    notifyListeners();
   }
 
   ValueNode<T>? getValueNode() {
@@ -103,6 +110,30 @@ class NodeVariable<T> {
       return null;
     }
     return _valueNode;
+  }
+
+  void bindInputPin(InputValuePin<T>? pin) {
+    if (inputPin != null) {
+      inputPin!.onValueChanged = null;
+    }
+    inputPin = pin;
+    if (inputPin != null) {
+      inputPin!.onValueChanged = (value) {
+        _valueNode = value;
+      };
+    }
+    notifyListeners();
+  }
+
+  void bindOutputPin(OutputValuePin<T>? pin) {
+    if (outputPin != null) {
+      outputPin!.update(null);
+    }
+    outputPin = pin;
+    if (outputPin != null) {
+      outputPin!.update(getValueNode());
+    }
+    notifyListeners();
   }
 
   NodeVariable({
@@ -157,6 +188,7 @@ class ChangeValueNode<T> extends ValueNode<T> with ChangeNotifier {
 
 class ConstValueNode<T> extends ValueNode<T> {
   final T _value;
+  @override
   T get value => _value;
   const ConstValueNode(this._value);
 }
@@ -186,6 +218,7 @@ class ViewportRenderData extends RenderData<ViewportNode> {
 class ColumnRenderData extends RenderData<ColumnNode> {
   ColumnRenderData();
 
+  @override
   Iterable<NodeVariable> getVariables(ColumnNode node) => [
         node.mainAxisAlignment,
         node.crossAxisAlignment,
