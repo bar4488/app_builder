@@ -310,38 +310,11 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTap: () {},
-                      // onTapDown: (details) {
-                      //   editorState.disableContextMenuHide();
-                      // },
-                      // onTapUp: (details) {
-                      //   editorState.enableContextMenuHide();
-                      // },
-                      // onTapCancel: () => editorState.enableContextMenuHide(),
                       child: ContextMenuOverlay(
                         onDismiss: () => editorState.hideContextMenu(),
-                        onAddColumnNode: () => addNode(
-                          node: (id, position) => ColumnNode(
-                            id: id,
-                            position: position,
-                          ),
-                        ),
-                        onAddRowNode: () => addNode(
-                          node: (id, position) => RowNode(
-                            id: id,
-                            position: position,
-                          ),
-                        ),
-                        onAddTextNode: () => addNode(
-                          node: (id, position) => TextNode(
-                            id: id,
-                            position: position,
-                          ),
-                        ),
-                        onAddStringNode: () => addNode(
-                          node: (id, position) => StringNode(
-                            id: id,
-                            position: position,
-                          ),
+                        onAddNode: (type) => addNode(
+                          node: (id, position) =>
+                              type.nodeBuilder(id, position),
                         ),
                       ),
                     ),

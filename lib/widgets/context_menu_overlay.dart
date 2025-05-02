@@ -1,25 +1,15 @@
 import 'package:flutter/material.dart';
-
-enum NodeCategory {
-  layout,
-  widget,
-  data,
-}
+import 'package:unreal_editor/models/nodes.dart';
+import 'package:unreal_editor/utils/string_extensions.dart';
 
 class ContextMenuOverlay extends StatefulWidget {
   final VoidCallback onDismiss;
-  final VoidCallback onAddColumnNode;
-  final VoidCallback onAddRowNode;
-  final VoidCallback onAddTextNode;
-  final VoidCallback onAddStringNode;
+  final void Function(NodeType nodeType) onAddNode;
 
   const ContextMenuOverlay({
     super.key,
     required this.onDismiss,
-    required this.onAddColumnNode,
-    required this.onAddRowNode,
-    required this.onAddTextNode,
-    required this.onAddStringNode,
+    required this.onAddNode,
   });
 
   @override
@@ -37,20 +27,18 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
   @override
   void initState() {
     focusNode.requestFocus();
-    _menuItems = {
-      NodeCategory.layout: [
-        MenuItemData(
-            title: 'Column Node', onTap: () => widget.onAddColumnNode()),
-        MenuItemData(title: 'Row Node', onTap: () => widget.onAddRowNode()),
-      ],
-      NodeCategory.widget: [
-        MenuItemData(title: 'Text Node', onTap: () => widget.onAddTextNode()),
-      ],
-      NodeCategory.data: [
-        MenuItemData(
-            title: 'String Node', onTap: () => widget.onAddStringNode()),
-      ],
-    };
+    _menuItems = {};
+    for (final nodeType in nodeTypes) {
+      if (nodeType.category == NodeCategory.internal) continue;
+      _menuItems[nodeType.category] ??= [];
+      _menuItems[nodeType.category]!.add(MenuItemData(
+        title: nodeType.name,
+        onTap: () {
+          widget.onAddNode(nodeType);
+          widget.onDismiss();
+        },
+      ));
+    }
     super.initState();
   }
 
@@ -105,10 +93,10 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
                         border: OutlineInputBorder(),
                       ),
                       onSubmitted: (value) {
-                        if (_searchResults.length == 1) {
+                        if (_searchResults.isNotEmpty) {
                           _searchResults.first.onTap!();
+                          widget.onDismiss();
                         }
-                        widget.onDismiss();
                       },
                       onChanged: (value) =>
                           setState(() => _searchQuery = value),
@@ -129,11 +117,11 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                _buildCategoryItem(
-                                    NodeCategory.layout, 'Layout'),
-                                _buildCategoryItem(
-                                    NodeCategory.widget, 'Widgets'),
-                                _buildCategoryItem(NodeCategory.data, 'Data'),
+                                for (final category in _menuItems.keys)
+                                  _buildCategoryItem(
+                                    category,
+                                    category.name.capitalize(),
+                                  ),
                               ],
                             ),
                     ),

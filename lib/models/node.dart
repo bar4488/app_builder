@@ -6,7 +6,7 @@ import 'package:unreal_editor/models/node_settigns.dart';
 import 'package:unreal_editor/models/variable.dart';
 import 'pin.dart';
 
-enum NodeType {
+enum NodeKind {
   static,
   multiOutput,
 }
@@ -23,7 +23,7 @@ class Node with ChangeNotifier {
   final List<Pin> inputPins;
   final List<Pin> outputPins;
   bool isSelected;
-  NodeType type;
+  NodeKind type;
 
   static const List<Color?> highlightColors = [
     null,
@@ -50,7 +50,7 @@ class Node with ChangeNotifier {
     required this.title,
     required this.position,
     bool hasRenderInput = false,
-    this.type = NodeType.static,
+    this.type = NodeKind.static,
     this.size = const Size(180, 100), // Default size
     List<Pin>? inputPins,
     List<Pin>? outputPins,
@@ -66,6 +66,19 @@ class Node with ChangeNotifier {
             label: "Render",
             direction: PinDirection.input,
           ));
+    }
+    for (var target in getRenderTargets()) {
+      // add render pin to output at end of list
+      addOutputPin(
+        OutputRenderPin(
+          nodeId: id,
+          label: target.name,
+          onRenderTargetChanged: (childId) {
+            target.targetNodeId = childId;
+            notifyListeners();
+          },
+        ),
+      );
     }
     // Initialize pin positions
     calculatePinPositions();
@@ -96,7 +109,7 @@ class Node with ChangeNotifier {
         size.width,
         initialOffset +
             (max(inputPins.length, outputPins.length)) * pinSpacing +
-            (type == NodeType.static ? 0 : 20));
+            (type == NodeKind.static ? 0 : 20));
   }
 
   void removeInputPin(Pin pin) {
@@ -127,9 +140,9 @@ class Node with ChangeNotifier {
     required T Function(MultiOutputNode) multiOutput,
   }) {
     switch (type) {
-      case NodeType.static:
+      case NodeKind.static:
         return static(this);
-      case NodeType.multiOutput:
+      case NodeKind.multiOutput:
         return multiOutput(this as MultiOutputNode);
     }
   }
@@ -167,6 +180,10 @@ class Node with ChangeNotifier {
   Iterable<NodeVariable> getVariables() {
     return [];
   }
+
+  Iterable<RenderTarget> getRenderTargets() {
+    return [];
+  }
 }
 
 abstract class MultiOutputNode extends Node {
@@ -180,7 +197,7 @@ abstract class MultiOutputNode extends Node {
     super.outputPins,
     super.isSelected,
   }) : super(
-          type: NodeType.multiOutput,
+          type: NodeKind.multiOutput,
         );
 
   OutputRenderPin addOutputRenderPin();

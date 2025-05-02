@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:unreal_editor/models/exceptions.dart';
+import 'package:unreal_editor/models/node.dart';
 import 'package:unreal_editor/models/pin.dart';
 
 class NodeVariable<T> with ChangeNotifier {
@@ -24,10 +24,7 @@ class NodeVariable<T> with ChangeNotifier {
 
   T get value {
     var value = valueOrNull;
-    if (value == null) {
-      throw NodeValueException("something", "NodeVariable is not initialized");
-    }
-    return value;
+    return value!;
   }
 
   void setValueNode(ValueNode<T>? value) {

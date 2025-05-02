@@ -96,22 +96,26 @@ class ColumnNodeSettigns extends NodeSettigns<ColumnNode> {
         EnumValueEditor<MainAxisAlignment>(
           node: node,
           variable: node.mainAxisAlignment,
-          enumValues: MainAxisAlignment.values.asMap().map(
-                (key, value) => MapEntry(
+          enumValues: MainAxisAlignment.values
+              .map(
+                (value) => MapEntry(
                   value.toString(),
                   value,
                 ),
-              ),
+              )
+              .toList(),
         ),
         EnumValueEditor<CrossAxisAlignment>(
           node: node,
           variable: node.crossAxisAlignment,
-          enumValues: CrossAxisAlignment.values.asMap().map(
-                (key, value) => MapEntry(
+          enumValues: CrossAxisAlignment.values
+              .map(
+                (value) => MapEntry(
                   value.toString(),
                   value,
                 ),
-              ),
+              )
+              .toList(),
         ),
       ],
     );

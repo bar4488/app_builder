@@ -22,9 +22,21 @@ abstract class RenderData<T extends Node> {
     for (var e in variables) {
       if (e.getValueNode() == null) {
         throw NodeValueException(
-            node.id, "Variable ${e.name} is not initialized");
+          node.id,
+          "Variable ${e.name} is not initialized",
+        );
       }
     }
+    var renderTargets = node.getRenderTargets();
+    for (var e in renderTargets) {
+      if (e.targetNodeId == null) {
+        throw NodeRenderException(
+          node.id,
+          "Render target ${e.name} is not initialized",
+        );
+      }
+    }
+
     // get all change notifiers
     var listeners = variables
         .map((e) => e.getValueNode()!)
@@ -74,6 +86,17 @@ abstract class RenderData<T extends Node> {
         return builder();
       },
     );
+  }
+}
+
+class RenderTarget {
+  String name;
+  String? targetNodeId;
+  RenderTarget({required this.name});
+
+  Widget build(BlueprintState state) {
+    var node = state.findNodeById(targetNodeId!)!;
+    return node.renderData!.build(state, node);
   }
 }
 

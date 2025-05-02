@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:unreal_editor/models/exceptions.dart';
 import 'package:unreal_editor/models/node.dart';
 import 'package:unreal_editor/models/render_data.dart';
 import 'package:unreal_editor/models/pin.dart';
-import 'package:unreal_editor/models/variable.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
 class ViewportNode extends Node {
@@ -15,7 +13,7 @@ class ViewportNode extends Node {
       : _renderData = ViewportRenderData(),
         super(
           title: "Viewport",
-          type: NodeType.static,
+          type: NodeKind.static,
         ) {
     addOutputPin(
       OutputRenderPin(
@@ -50,7 +48,4 @@ class ViewportRenderData extends RenderData<ViewportNode> {
     Widget childWidget = child.renderData!.build(state, child);
     return () => Center(child: childWidget);
   }
-
-  @override
-  Iterable<NodeVariable> getVariables(ViewportNode node) => [];
 }

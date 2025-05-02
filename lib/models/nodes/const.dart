@@ -16,7 +16,7 @@ class StringNode extends Node {
       : _settigns = StringNodeSettigns(),
         super(
           title: "String",
-          type: NodeType.static,
+          type: NodeKind.static,
         ) {
     valuePin = OutputValuePin<String>(
       nodeId: id,

@@ -11,27 +11,37 @@ abstract class NodeSettigns<T extends Node> {
 
 class EnumValueEditor<T> extends StatefulWidget {
   final String label;
-  final Map<String, T> enumValues;
+  final List<MapEntry<String, T>> enumValues;
   final NodeVariable<T> variable;
+  final List<Widget>? prefixes;
   final Node node;
 
-  const EnumValueEditor({
+  EnumValueEditor({
     super.key,
     required this.node,
     required this.variable,
     required this.enumValues,
+    this.prefixes,
     this.label = "Enum Value",
-  });
+  }) {
+    assert(prefixes == null || prefixes!.length == enumValues.length);
+  }
 
   @override
   State<EnumValueEditor<T>> createState() => _EnumValueEditorState<T>();
 }
 
 class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
-  T? value;
+  int? index;
   @override
   void initState() {
-    value = widget.variable.value;
+    var value = widget.variable.valueOrNull;
+    if (value is T) {
+      index = widget.enumValues.map((e) => e.value).toList().indexOf(value);
+      if (index == -1) {
+        index = null;
+      }
+    }
     super.initState();
   }
 
@@ -45,30 +55,54 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Expanded(
-                child: DropdownButtonFormField<T>(
-                  value: widget.variable.valueOrNull,
+                child: DropdownButtonFormField<int>(
+                  value: index,
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: widget.label,
                   ),
-                  items: widget.enumValues.entries
-                      .map((entry) => DropdownMenuItem<T>(
-                            value: entry.value,
-                            child: Text(
-                              entry.key,
-                              overflow: TextOverflow.ellipsis,
+                  selectedItemBuilder: (context) => List.generate(
+                      widget.enumValues.length,
+                      (index) => Row(
+                            children: [
+                              if (widget.prefixes != null) ...[
+                                widget.prefixes![index],
+                                const SizedBox(
+                                  width: 4,
+                                )
+                              ],
+                              Text(
+                                widget.enumValues[index].key,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          )).toList(),
+                  items: List.generate(
+                      widget.enumValues.length,
+                      (index) => DropdownMenuItem<int>(
+                            value: index,
+                            child: ListTile(
+                              leading: widget.prefixes != null
+                                  ? widget.prefixes![index]
+                                  : null,
+                              title: Text(
+                                widget.enumValues[index].key,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ))
-                      .toList(),
+                          )).toList(),
                   onChanged: widget.variable.inputPin != null
                       ? null
-                      : (newValue) {
-                          if (newValue != null) {
-                            widget.variable
-                                .setValueNode(ConstValueNode(newValue));
+                      : (newIndex) {
+                          if (newIndex != null) {
+                            widget.variable.setValueNode(ConstValueNode(
+                                widget.enumValues[newIndex].value));
                           } else {
                             widget.variable.setValueNode(null);
                           }
+                          setState(() {
+                            index = newIndex;
+                          });
                           context.read<BlueprintState>().notifyListeners();
                         },
                 ),
@@ -97,8 +131,8 @@ class StringValueEditor extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Expanded(
-                child: TextField(
-                  controller: TextEditingController(text: variable.valueOrNull),
+                child: TextFormField(
+                  initialValue: variable.valueOrNull,
                   enabled: variable.inputPin == null,
                   onChanged: (newValue) {
                     variable.setValueNode(ConstValueNode(newValue));
