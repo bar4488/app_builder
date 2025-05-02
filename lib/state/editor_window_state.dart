@@ -17,6 +17,9 @@ class EditorWindowState with ChangeNotifier {
 
   void toggleRightDrawer() {
     _rightDrawerOpen = !_rightDrawerOpen;
+    if (_rightDrawerOpen) {
+      focusNodeSettings();
+    }
     notifyListeners();
   }
 
@@ -27,6 +30,7 @@ class EditorWindowState with ChangeNotifier {
 
   void openRightDrawer() {
     _rightDrawerOpen = true;
+    focusNodeSettings();
     notifyListeners();
   }
 

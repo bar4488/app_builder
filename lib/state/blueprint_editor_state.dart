@@ -71,6 +71,7 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void hideContextMenu() {
+    _contextMenuStartPin = null;
     _contextMenuPosition = null;
     notifyListeners();
   }
