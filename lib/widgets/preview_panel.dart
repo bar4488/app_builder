@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:unreal_editor/models/exceptions.dart';
-import 'package:unreal_editor/state/blueprint_editor_state.dart';
-import 'package:unreal_editor/state/blueprint_state.dart';
+import 'package:app_builder/models/exceptions.dart';
+import 'package:app_builder/state/blueprint_editor_state.dart';
+import 'package:app_builder/state/blueprint_state.dart';
 
 class PreviewPanel extends StatefulWidget {
   const PreviewPanel({super.key});

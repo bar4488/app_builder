@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:unreal_editor/state/editor_window_state.dart';
-import 'package:unreal_editor/widgets/editor_window.dart';
+import 'package:app_builder/state/editor_window_state.dart';
+import 'package:app_builder/widgets/editor_window.dart';
 
 void main() {
   runApp(const BlueprintEditorApp());

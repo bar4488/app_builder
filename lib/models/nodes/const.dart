@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:unreal_editor/models/node.dart';
-import 'package:unreal_editor/models/node_settigns.dart';
-import 'package:unreal_editor/models/pin.dart';
-import 'package:unreal_editor/models/variable.dart';
+import 'package:app_builder/models/node.dart';
+import 'package:app_builder/models/node_settigns.dart';
+import 'package:app_builder/models/pin.dart';
+import 'package:app_builder/models/variable.dart';
 
 class StringNode extends Node {
   NodeSettigns _settigns;

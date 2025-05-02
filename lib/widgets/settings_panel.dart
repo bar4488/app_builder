@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:unreal_editor/models/node.dart';
-import 'package:unreal_editor/state/blueprint_editor_state.dart';
+import 'package:app_builder/models/node.dart';
+import 'package:app_builder/state/blueprint_editor_state.dart';
 
 class SettingsPanel extends StatelessWidget {
   const SettingsPanel({super.key});

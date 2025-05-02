@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:unreal_editor/state/blueprint_state.dart';
-import 'package:unreal_editor/state/editor_window_state.dart';
-import 'package:unreal_editor/widgets/preview_panel.dart';
-import 'package:unreal_editor/widgets/settings_panel.dart';
+import 'package:app_builder/state/blueprint_state.dart';
+import 'package:app_builder/state/editor_window_state.dart';
+import 'package:app_builder/widgets/preview_panel.dart';
+import 'package:app_builder/widgets/settings_panel.dart';
 import '../state/blueprint_editor_state.dart';
 import 'blueprint_editor_widget.dart';
 

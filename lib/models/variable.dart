@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:unreal_editor/models/node.dart';
-import 'package:unreal_editor/models/pin.dart';
+import 'package:app_builder/models/node.dart';
+import 'package:app_builder/models/pin.dart';
 
 class NodeVariable<T> with ChangeNotifier {
   String name;

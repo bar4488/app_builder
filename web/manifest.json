@@ -1,6 +1,6 @@
 {
-    "name": "unreal_editor",
-    "short_name": "unreal_editor",
+    "name": "app_builder",
+    "short_name": "app_builder",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="unreal_editor"
+        android:label="app_builder"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
