@@ -27,8 +27,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
     setState(() {
       editorState.clearNodeErrors();
       try {
-        child = state.viewportNode.renderData!
-            .buildNodeWidget(state, state.viewportNode);
+        child = state.viewportNode.renderData!.build(state, state.viewportNode);
       } on NodeValueException catch (e) {
         editorState.setNodeError(e.nodeId, e.errorMessage);
         child = Center(

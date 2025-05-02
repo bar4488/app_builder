@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/models/node.dart';
 import 'package:unreal_editor/models/nodes/node_data.dart';
+import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
 abstract class NodeSettigns<T extends Node> {
@@ -15,18 +16,104 @@ class StringNodeSettigns extends NodeSettigns<StringNode> {
   @override
   Widget buildSettingsWidget(BuildContext context, StringNode node) {
     // build a widget to edit the string value
-    return TextField(
-      controller: TextEditingController(text: value),
+    return ListView(
+      children: [
+        StringValueEditor(pin: node.valuePin),
+      ],
+    );
+  }
+}
+
+class ColumnNodeSettigns extends NodeSettigns<ColumnNode> {
+  @override
+  Widget buildSettingsWidget(BuildContext context, ColumnNode node) {
+    return ListView(
+      children: [
+        EnumValueEditor<MainAxisAlignment>(
+          variable: node.mainAxisAlignment,
+          enumValues: MainAxisAlignment.values.asMap().map(
+                (key, value) => MapEntry(
+                  value.toString(),
+                  value,
+                ),
+              ),
+        ),
+        EnumValueEditor<CrossAxisAlignment>(
+          variable: node.crossAxisAlignment,
+          enumValues: CrossAxisAlignment.values.asMap().map(
+                (key, value) => MapEntry(
+                  value.toString(),
+                  value,
+                ),
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class EnumValueEditor<T> extends StatefulWidget {
+  final String label;
+  final Map<String, T> enumValues;
+  final NodeVariable<T> variable;
+
+  const EnumValueEditor({
+    super.key,
+    required this.variable,
+    required this.enumValues,
+    this.label = "Enum Value",
+  });
+
+  @override
+  State<EnumValueEditor<T>> createState() => _EnumValueEditorState<T>();
+}
+
+class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
+  T? value;
+  @override
+  void initState() {
+    value = widget.variable.value;
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<T>(
+      value: value,
+      decoration: InputDecoration(labelText: widget.label),
+      items: widget.enumValues.entries
+          .map((entry) => DropdownMenuItem<T>(
+                value: entry.value,
+                child: Text(entry.key),
+              ))
+          .toList(),
       onChanged: (newValue) {
-        value = newValue;
-        if (value == null || value!.isEmpty) {
-          node.valuePin.update(null);
+        if (newValue != null) {
+          widget.variable.setValueNode(ConstValueNode(newValue));
         } else {
-          node.valuePin.update(ConstValueNode(value!));
+          widget.variable.setValueNode(null);
         }
         context.read<BlueprintState>().notifyListeners();
       },
-      decoration: const InputDecoration(labelText: 'String Value'),
+    );
+  }
+}
+
+class StringValueEditor extends StatelessWidget {
+  final OutputValuePin<String> pin;
+  final String label;
+  const StringValueEditor(
+      {super.key, required this.pin, this.label = "String Value"});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: TextEditingController(text: pin.value?.value),
+      onChanged: (newValue) {
+        pin.update(ConstValueNode(newValue));
+        context.read<BlueprintState>().notifyListeners();
+      },
+      decoration: InputDecoration(labelText: label),
     );
   }
 }

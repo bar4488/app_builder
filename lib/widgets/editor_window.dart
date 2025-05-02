@@ -54,6 +54,7 @@ class _EditorWindowState extends State<EditorWindow> {
               width: _leftDrawerOpen ? 300 : 0,
               child: UnconstrainedBox(
                 clipBehavior: Clip.antiAlias,
+                constrainedAxis: Axis.vertical,
                 alignment: Alignment.topLeft,
                 child: Container(
                   alignment: Alignment.centerLeft,
@@ -78,12 +79,16 @@ class _EditorWindowState extends State<EditorWindow> {
               width: _rightDrawerOpen ? 300 : 0,
               child: UnconstrainedBox(
                 clipBehavior: Clip.antiAlias,
+                constrainedAxis: Axis.vertical,
                 alignment: Alignment.topLeft,
                 child: Container(
                   alignment: Alignment.centerLeft,
                   width: 300,
                   color: Theme.of(context).colorScheme.surface,
-                  child: SettingsPanel(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: SettingsPanel(),
+                  ),
                 ),
               ),
             ),

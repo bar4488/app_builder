@@ -112,7 +112,7 @@ class OutputValuePin<T> extends Pin {
           nodeId: nodeId,
           label: label,
           direction: PinDirection.output,
-          multi: false,
+          multi: true,
           type: PinType.value,
         );
 
@@ -121,19 +121,13 @@ class OutputValuePin<T> extends Pin {
     // Notify the input nodes
     for (var conn in connections) {
       if (conn.endPin is InputValuePin<T>) {
-        (conn.endPin as InputValuePin<T>).onValueChanged!(this);
+        (conn.endPin as InputValuePin<T>).onValueChanged!(value);
       }
     }
   }
 
-  ValueNode<T> get value {
-    if (_value == null) {
-      return InvalidValueNode<T>(
-        nodeId,
-        "invalid value for pin '$label'",
-      );
-    }
-    return _value!;
+  ValueNode<T>? get value {
+    return _value;
   }
 
   // @override
@@ -146,7 +140,7 @@ class OutputValuePin<T> extends Pin {
 }
 
 class InputValuePin<T> extends Pin {
-  void Function(OutputValuePin<T>? output)? onValueChanged;
+  void Function(ValueNode<T>? newVal)? onValueChanged;
 
   InputValuePin({
     required String nodeId,
@@ -164,7 +158,8 @@ class InputValuePin<T> extends Pin {
   void onConnectionChanged() {
     // Notify the value node of the new value
     if (onValueChanged != null) {
-      onValueChanged!(connections.firstOrNull?.startPin as OutputValuePin<T>?);
+      onValueChanged!(
+          (connections.firstOrNull?.startPin as OutputValuePin<T>?)?.value);
     }
   }
 

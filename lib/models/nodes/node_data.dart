@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/widgets.dart';
 import 'package:unreal_editor/models/node.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
@@ -29,24 +31,85 @@ class NodeValueException implements Exception {
 abstract class RenderData<T extends Node> {
   RenderData();
 
-  Widget buildNodeWidget(
+  Widget Function() getBuilder(
     BlueprintState state,
     T node,
   );
+
+  Iterable<NodeVariable> getVariables(T node);
+
+  Widget build(BlueprintState state, T node) {
+    var variables = getVariables(node);
+
+    // if null, throw exception
+    for (var e in variables) {
+      if (e.getValueNode() == null) {
+        throw NodeValueException(
+            node.id, "Variable ${e.name} is not initialized");
+      }
+    }
+    // get all change notifiers
+    var listeners = variables
+        .map((e) => e.getValueNode()!)
+        .whereType<ChangeValueNode>()
+        .toList();
+
+    var builder = getBuilder(state, node);
+    if (listeners.isEmpty) {
+      return builder();
+    }
+
+    return ChangeValueWidget(
+      listeners: listeners,
+      builder: (context) {
+        return builder();
+      },
+    );
+  }
 }
 
-class StringValueNode extends NodeData {
-  String value;
-  StringValueNode(this.value);
-}
+class NodeVariable<T> {
+  String name;
+  ValueNode<T>? _valueNode;
+  T? defaultValue;
 
-class TextNodeData extends NodeData {
-  String text;
-  TextNodeData(this.text);
-}
+  T? get valueOrNull {
+    if (_valueNode == null) {
+      if (defaultValue != null) {
+        return defaultValue!;
+      }
+      return null;
+    }
+    return _valueNode!.value;
+  }
 
-class ViewportNodeData extends NodeData {
-  ViewportNodeData();
+  T get value {
+    var value = valueOrNull;
+    if (value == null) {
+      throw NodeValueException("something", "NodeVariable is not initialized");
+    }
+    return value;
+  }
+
+  void setValueNode(ValueNode<T>? value) {
+    _valueNode = value;
+  }
+
+  ValueNode<T>? getValueNode() {
+    if (_valueNode == null) {
+      if (defaultValue != null) {
+        return ConstValueNode(defaultValue as T);
+      }
+      return null;
+    }
+    return _valueNode;
+  }
+
+  NodeVariable({
+    required this.name,
+    ValueNode<T>? value,
+    this.defaultValue,
+  }) : _valueNode = value;
 }
 
 abstract class ValueNode<T> {
@@ -54,7 +117,7 @@ abstract class ValueNode<T> {
   const ValueNode();
 
   bool isConst() {
-    return this is ConstValueNode<T> || this is InvalidValueNode<T>;
+    return this is ConstValueNode<T>;
   }
 
   ConstValueNode<T> asConst() {
@@ -98,22 +161,11 @@ class ConstValueNode<T> extends ValueNode<T> {
   const ConstValueNode(this._value);
 }
 
-class InvalidValueNode<T> extends ValueNode<T> {
-  String nodeId;
-  String errorMessage;
-
-  InvalidValueNode(this.nodeId, this.errorMessage);
-  @override
-  T get value {
-    throw NodeValueException(nodeId, errorMessage);
-  }
-}
-
 class ViewportRenderData extends RenderData<ViewportNode> {
   ViewportRenderData();
 
   @override
-  Widget buildNodeWidget(
+  Widget Function() getBuilder(
     BlueprintState state,
     ViewportNode node,
   ) {
@@ -123,16 +175,24 @@ class ViewportRenderData extends RenderData<ViewportNode> {
     }
     var child = state.findNodeById(childId)!;
 
-    Widget childWidget = child.renderData!.buildNodeWidget(state, child);
-    return Center(child: childWidget);
+    Widget childWidget = child.renderData!.build(state, child);
+    return () => Center(child: childWidget);
   }
+
+  @override
+  Iterable<NodeVariable> getVariables(ViewportNode node) => [];
 }
 
 class ColumnRenderData extends RenderData<ColumnNode> {
   ColumnRenderData();
 
+  Iterable<NodeVariable> getVariables(ColumnNode node) => [
+        node.mainAxisAlignment,
+        node.crossAxisAlignment,
+      ];
+
   @override
-  Widget buildNodeWidget(
+  Widget Function() getBuilder(
     BlueprintState state,
     ColumnNode node,
   ) {
@@ -140,37 +200,23 @@ class ColumnRenderData extends RenderData<ColumnNode> {
         .map(
           (e) => state.findNodeById(e)!,
         )
-        .map((child) => child.renderData!.buildNodeWidget(state, child))
+        .map((child) => child.renderData!.build(state, child))
         .toList()
         .cast<Widget>();
 
-    ValueNode<MainAxisAlignment> mainAxisAlignment = node.mainAxisAlignment;
-
-    Widget builder(state, {required MainAxisAlignment mainAxisAlignment}) {
-      return Column(
-        mainAxisAlignment: mainAxisAlignment,
-        children: children,
-      );
-    }
-
-    List<ChangeNotifier> listeners = [];
-    if (!mainAxisAlignment.isConst()) {
-      listeners.add(mainAxisAlignment.asChangeNotifier());
-    }
-
-    if (listeners.isEmpty) {
-      return builder(state, mainAxisAlignment: mainAxisAlignment.value);
-    }
-
-    return ChangeValueWidget(
-      listeners: listeners,
-      builder: (context) {
-        return builder(
-          state,
-          mainAxisAlignment: mainAxisAlignment.value,
+    Widget builder() {
+      return Builder(builder: (context) {
+        return SizedBox.expand(
+          child: Column(
+            mainAxisAlignment: node.mainAxisAlignment.value,
+            crossAxisAlignment: node.crossAxisAlignment.value,
+            children: children,
+          ),
         );
-      },
-    );
+      });
+    }
+
+    return builder;
   }
 }
 
@@ -178,35 +224,23 @@ class TextRenderData extends RenderData<TextNode> {
   TextRenderData();
 
   @override
-  Widget buildNodeWidget(
+  Widget Function() getBuilder(
     BlueprintState state,
     TextNode node,
   ) {
-    ValueNode<String> textValue = node.text ?? const ConstValueNode("no text");
+    NodeVariable<String> textValue = node.text;
 
-    Widget builder(state, {required String text}) {
-      return Text(text);
+    Widget builder() {
+      return Text(textValue.value);
     }
 
-    List<ChangeNotifier> listeners = [];
-    if (!textValue.isConst()) {
-      listeners.add(textValue.asChangeNotifier());
-    }
-
-    if (listeners.isEmpty) {
-      return builder(state, text: textValue.value);
-    }
-
-    return ChangeValueWidget(
-      listeners: listeners,
-      builder: (context) {
-        return builder(
-          state,
-          text: textValue.value,
-        );
-      },
-    );
+    return builder;
   }
+
+  @override
+  Iterable<NodeVariable> getVariables(TextNode node) => [
+        node.text,
+      ];
 }
 
 class ChangeValueWidget extends StatefulWidget {

@@ -181,11 +181,20 @@ class ColumnNode extends MultiOutputNode {
 
   final List<String?> children = [];
 
-  ValueNode<MainAxisAlignment>? _mainAxisAlignment;
+  NodeVariable<MainAxisAlignment> mainAxisAlignment =
+      NodeVariable<MainAxisAlignment>(
+    name: "MainAxisAlignment",
+    defaultValue: MainAxisAlignment.start,
+  );
+  NodeVariable<CrossAxisAlignment> crossAxisAlignment =
+      NodeVariable<CrossAxisAlignment>(
+    name: "CrossAxisAlignment",
+    defaultValue: CrossAxisAlignment.start,
+  );
 
-  ValueNode<MainAxisAlignment> get mainAxisAlignment =>
-      _mainAxisAlignment ??
-      const ConstValueNode<MainAxisAlignment>(MainAxisAlignment.start);
+  final NodeSettigns _settigns = ColumnNodeSettigns();
+  @override
+  NodeSettigns get settings => _settigns;
 
   ColumnNode({required super.id, required super.position})
       : _renderData = ColumnRenderData(),
@@ -196,9 +205,8 @@ class ColumnNode extends MultiOutputNode {
       InputValuePin<MainAxisAlignment>(
         nodeId: id,
         label: "MainAxisAlignment",
-        onValueChanged: (output) {
-          _mainAxisAlignment = output?.value;
-          notifyListeners();
+        onValueChanged: (value) {
+          mainAxisAlignment.setValueNode(value);
         },
       ),
     );
@@ -258,7 +266,7 @@ class TextNode extends Node {
   @override
   RenderData get renderData => _renderData;
 
-  ValueNode<String>? text;
+  NodeVariable<String> text = NodeVariable<String>(name: "Text");
 
   TextNode({required super.id, required super.position})
       : _renderData = TextRenderData(),
@@ -270,8 +278,8 @@ class TextNode extends Node {
       InputValuePin<String>(
         nodeId: id,
         label: "value",
-        onValueChanged: (output) {
-          text = output?.value;
+        onValueChanged: (value) {
+          text.setValueNode(value);
           notifyListeners();
         },
       ),

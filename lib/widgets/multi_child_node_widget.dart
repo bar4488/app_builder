@@ -18,8 +18,10 @@ class MultiOutputNodeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var padding = 8;
+    var padding = node.padding;
     var editorState = context.read<BlueprintEditorState>();
+
+    var nodeError = editorState.getNodeError(node.id);
 
     return Stack(
       clipBehavior: Clip.none,
@@ -155,6 +157,20 @@ class MultiOutputNodeWidget extends StatelessWidget {
             ),
           ),
         ),
+        // error text
+        if (nodeError != null)
+          Positioned(
+            left: padding + 6 + 2,
+            right: padding + 6 + 2,
+            child: Text(
+              nodeError,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.red,
+              ),
+            ),
+          ),
       ],
     );
   }
