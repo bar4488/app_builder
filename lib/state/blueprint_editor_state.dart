@@ -34,6 +34,7 @@ class BlueprintEditorState extends ChangeNotifier {
 
   // Add these properties for context menu
   Offset? _contextMenuPosition;
+  bool _disableContextMenuHide = false;
   Offset? get contextMenuPosition => _contextMenuPosition;
 
   static const double stackWidth = 4000.0;
@@ -46,6 +47,8 @@ class BlueprintEditorState extends ChangeNotifier {
   final Map<String, String?> _nodeErrors = {};
 
   Node? selectedNode;
+
+  bool isControlPressed = false;
 
   BlueprintEditorState(this._blueprintState);
 
@@ -60,7 +63,16 @@ class BlueprintEditorState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void disableContextMenuHide() {
+    _disableContextMenuHide = true;
+  }
+
+  void enableContextMenuHide() {
+    _disableContextMenuHide = false;
+  }
+
   void hideContextMenu() {
+    if (_disableContextMenuHide) return;
     _contextMenuPosition = null;
     notifyListeners();
   }
@@ -100,6 +112,13 @@ class BlueprintEditorState extends ChangeNotifier {
       node.position = newPosition;
       notifyListeners();
     }
+  }
+
+  void deselectNode(String nodeId) {
+    final node = findNodeById(nodeId)!;
+    node.isSelected = false;
+    selectedNode = null;
+    notifyListeners();
   }
 
   void selectNode(String nodeId, {bool multiSelect = false}) {

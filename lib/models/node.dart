@@ -1,8 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:unreal_editor/models/nodes/node_data.dart';
-import 'package:unreal_editor/models/nodes/node_settigns.dart';
+import 'package:unreal_editor/models/render_data.dart';
+import 'package:unreal_editor/models/node_settigns.dart';
 import 'pin.dart';
 
 enum NodeType {
@@ -23,6 +23,19 @@ class Node with ChangeNotifier {
   final List<Pin> outputPins;
   bool isSelected;
   NodeType type;
+
+  static const List<Color?> highlightColors = [
+    null,
+    Colors.red,
+    Colors.green,
+    Colors.blue,
+    Colors.yellow,
+    Colors.orange,
+    Colors.purple,
+  ];
+  int highlightColorIndex = 0;
+  Color? get highlightColor =>
+      highlightColors[highlightColorIndex % highlightColors.length];
 
   bool get isRenderable => renderData != null;
   RenderData? get renderData => null;
@@ -135,6 +148,16 @@ class Node with ChangeNotifier {
       (count) => "Value from ${pin.label}: $count",
     );
   }
+
+  void nextHighlightColor() {
+    highlightColorIndex++;
+    notifyListeners();
+  }
+
+  void removeHighlightColor() {
+    highlightColorIndex = 0;
+    notifyListeners();
+  }
 }
 
 abstract class MultiOutputNode extends Node {
@@ -181,7 +204,7 @@ class ViewportNode extends Node {
   RenderData get renderData => _renderData;
 }
 
-class ColumnNode extends MultiOutputNode {
+class RowNode extends MultiOutputNode {
   final RenderData _renderData;
 
   @override
@@ -200,14 +223,14 @@ class ColumnNode extends MultiOutputNode {
     defaultValue: CrossAxisAlignment.start,
   );
 
-  final NodeSettigns _settigns = ColumnNodeSettigns();
+  final NodeSettigns _settigns = RowNodeSettigns();
   @override
   NodeSettigns get settings => _settigns;
 
-  ColumnNode({required super.id, required super.position})
-      : _renderData = ColumnRenderData(),
+  RowNode({required super.id, required super.position})
+      : _renderData = RowRenderData(),
         super(
-          title: "Column",
+          title: "Row",
         );
 
   @override
@@ -223,36 +246,6 @@ class ColumnNode extends MultiOutputNode {
           children[index] = nodeId;
           notifyListeners();
         },
-      ),
-    );
-  }
-}
-
-class RowNode extends MultiOutputNode {
-  // final RenderData _renderData;
-
-  // @override
-  // RenderData get renderData => _renderData;
-
-  final List<Node> children = [];
-
-  ValueNode<MainAxisAlignment> mainAxisAlignment =
-      const ConstValueNode<MainAxisAlignment>(MainAxisAlignment.start);
-
-  RowNode({required super.id, required super.position})
-      // : _renderData = RowRenderData(),
-      : super(
-          title: "Row",
-        );
-
-  @override
-  void addOutputRenderPin() {
-    addOutputPin(
-      Pin(
-        nodeId: id,
-        label: "Output ${outputPins.length + 1}",
-        type: PinType.render,
-        direction: PinDirection.output,
       ),
     );
   }

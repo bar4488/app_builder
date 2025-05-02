@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:unreal_editor/models/connection.dart';
-import 'package:unreal_editor/models/nodes/node_data.dart';
+import 'package:unreal_editor/models/render_data.dart';
 
 // Enum to define pin direction
 enum PinDirection { input, output }

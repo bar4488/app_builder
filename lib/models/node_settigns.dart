@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/models/node.dart';
-import 'package:unreal_editor/models/nodes/node_data.dart';
+import 'package:unreal_editor/models/render_data.dart';
 import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/state/blueprint_editor_state.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
@@ -25,21 +25,11 @@ class StringNodeSettigns extends NodeSettigns<StringNode> {
   }
 }
 
-class ColumnNodeSettigns extends NodeSettigns<ColumnNode> {
+class RowNodeSettigns extends NodeSettigns<RowNode> {
   @override
-  Widget buildSettingsWidget(BuildContext context, ColumnNode node) {
+  Widget buildSettingsWidget(BuildContext context, RowNode node) {
     return ListView(
       children: [
-        // EnumValueEditor<MainAxisAlignment>(
-        //   node: node,
-        //   variable: node.mainAxisAlignment,
-        //   enumValues: MainAxisAlignment.values.asMap().map(
-        //         (key, value) => MapEntry(
-        //           value.toString(),
-        //           value,
-        //         ),
-        //       ),
-        // ),
         EnumValueEditor<MainAxisAlignment>(
           node: node,
           variable: node.mainAxisAlignment,
@@ -102,6 +92,7 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<T>(
+                  value: widget.variable.valueOrNull,
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: widget.label,
@@ -124,6 +115,7 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
                           } else {
                             widget.variable.setValueNode(null);
                           }
+                          context.read<BlueprintState>().notifyListeners();
                         },
                 ),
               ),

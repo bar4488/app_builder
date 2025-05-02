@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/state/blueprint_editor_state.dart';
+import 'package:unreal_editor/state/blueprint_state.dart';
 import '../models/node.dart';
 import 'pin_widget.dart';
 
@@ -18,8 +19,6 @@ class NodeWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Recalculate pin positions if needed (e.g., if size changes, though fixed for now)
-    // node.calculatePinPositions(); // Usually called when node created/resized
     var padding = node.padding;
     var editorState = context.read<BlueprintEditorState>();
 
@@ -35,22 +34,35 @@ class NodeWidget extends StatelessWidget {
                 alignment: Alignment.center,
                 width: node.size.width + padding * 2,
                 height: node.size.height + padding * 2,
-                // color: Colors.white54,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onPanStart: (details) {
-                    // Select node on drag start
                     editorState.selectNode(
                       node.id,
                       multiSelect: false,
-                    ); // Basic single selection
+                    );
                   },
-                  onTap: () =>
-                      editorState.selectNode(node.id, multiSelect: false),
                   onPanUpdate: onDragUpdate,
                   onPanEnd: onDragEnd,
+                  onTap: () {
+                    if (editorState.isControlPressed) {
+                      context.read<BlueprintState>().switchHighlightColor(node);
+                    } else {
+                      editorState.selectNode(node.id, multiSelect: false);
+                    }
+                  },
+                  onSecondaryTap: () {
+                    // remove highlight
+                    if (editorState.isControlPressed) {
+                      context.read<BlueprintState>().removeHighlightColor(node);
+                    } else {
+                      editorState.deselectNode(node.id);
+                    }
+                  },
                   child: Material(
-                    elevation: node.isSelected ? 8.0 : 4.0,
+                    elevation: node.isSelected || node.highlightColor != null
+                        ? 8.0
+                        : 4.0,
                     borderRadius: BorderRadius.circular(8.0),
                     child: Container(
                       width: node.size.width,
@@ -63,15 +75,13 @@ class NodeWidget extends StatelessWidget {
                         border: Border.all(
                           color: node.isSelected
                               ? Colors.lightBlueAccent
-                              : Colors.grey[700]!,
+                              : (node.highlightColor ?? Colors.grey[700]!),
                           width: node.isSelected ? 2.0 : 1.0,
                         ),
                       ),
                       child: Stack(
-                        clipBehavior: Clip
-                            .none, // Allow pins to draw outside bounds slightly
+                        clipBehavior: Clip.none,
                         children: [
-                          // Node Title
                           Positioned(
                             top: 0,
                             left: 0,
@@ -82,11 +92,9 @@ class NodeWidget extends StatelessWidget {
                                 horizontal: 10.0,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(
-                                    7.0,
-                                  ), // Match container radius
+                                  topLeft: Radius.circular(7.0),
                                   topRight: Radius.circular(7.0),
                                 ),
                               ),
@@ -100,26 +108,46 @@ class NodeWidget extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (node is MultiOutputNode)
+                            Positioned(
+                              bottom: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: () {
+                                  (node as MultiOutputNode)
+                                      .addOutputRenderPin();
+                                  editorState.notifyListeners();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4.0),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.lightBlueAccent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.add,
+                                    size: 16.0,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
                   ),
                 ),
               ),
-              // Input Pins
               ...node.inputPins.map(
                 (pin) => Positioned(
-                  left: padding +
-                      pin.relativePosition.dx -
-                      6, // Center the pin visually
+                  left: padding + pin.relativePosition.dx - 6,
                   top: padding + pin.relativePosition.dy,
                   child: PinWidget(pin: pin),
                 ),
               ),
-              // Input Pins labels:
               ...node.inputPins.map(
                 (pin) => Positioned(
-                  left: padding + 6 + 2, // Center the pin visually
+                  left: padding + 6 + 2,
                   top: padding + pin.relativePosition.dy - 2,
                   child: Text(
                     pin.label,
@@ -130,20 +158,16 @@ class NodeWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              // Output Pins
               ...node.outputPins.map(
                 (pin) => Positioned(
-                  left: padding +
-                      pin.relativePosition.dx -
-                      6, // Center the pin visually
+                  left: padding + pin.relativePosition.dx - 6,
                   top: padding + pin.relativePosition.dy,
                   child: PinWidget(pin: pin),
                 ),
               ),
-              // Output Pins labels:
               ...node.outputPins.map(
                 (pin) => Positioned(
-                  right: padding + 6 + 2, // Center the pin visually
+                  right: padding + 6 + 2,
                   top: padding + pin.relativePosition.dy - 2,
                   child: Text(
                     pin.label,

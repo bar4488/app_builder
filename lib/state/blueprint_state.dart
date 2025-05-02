@@ -102,4 +102,14 @@ class BlueprintState with ChangeNotifier {
         conn.startPin.nodeId == nodeId || conn.endPin.nodeId == nodeId);
     notifyListeners();
   }
+
+  void removeHighlightColor(Node node) {
+    node.removeHighlightColor();
+    notifyListeners();
+  }
+
+  void switchHighlightColor(Node node) {
+    node.nextHighlightColor(); // Toggle selection could be added later
+    notifyListeners();
+  }
 }

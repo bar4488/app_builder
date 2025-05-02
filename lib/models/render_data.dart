@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:unreal_editor/models/node.dart';
 import 'package:unreal_editor/models/pin.dart';
@@ -57,12 +58,44 @@ abstract class RenderData<T extends Node> {
 
     var builder = getBuilder(state, node);
     if (listeners.isEmpty) {
+      if (node.highlightColor != null) {
+        return Stack(
+          children: [
+            builder(),
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: node.highlightColor!,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      }
       return builder();
     }
 
     return ChangeValueWidget(
       listeners: listeners,
       builder: (context) {
+        if (node.highlightColor != null) {
+          return Stack(
+            children: [
+              builder(),
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: node.highlightColor!,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
         return builder();
       },
     );
@@ -215,11 +248,11 @@ class ViewportRenderData extends RenderData<ViewportNode> {
   Iterable<NodeVariable> getVariables(ViewportNode node) => [];
 }
 
-class ColumnRenderData extends RenderData<ColumnNode> {
-  ColumnRenderData();
+class RowRenderData extends RenderData<RowNode> {
+  RowRenderData();
 
   @override
-  Iterable<NodeVariable> getVariables(ColumnNode node) => [
+  Iterable<NodeVariable> getVariables(RowNode node) => [
         node.mainAxisAlignment,
         node.crossAxisAlignment,
       ];
@@ -227,7 +260,7 @@ class ColumnRenderData extends RenderData<ColumnNode> {
   @override
   Widget Function() getBuilder(
     BlueprintState state,
-    ColumnNode node,
+    RowNode node,
   ) {
     List<Widget> children = node.children.nonNulls
         .map(
@@ -239,12 +272,10 @@ class ColumnRenderData extends RenderData<ColumnNode> {
 
     Widget builder() {
       return Builder(builder: (context) {
-        return SizedBox.expand(
-          child: Column(
-            mainAxisAlignment: node.mainAxisAlignment.value,
-            crossAxisAlignment: node.crossAxisAlignment.value,
-            children: children,
-          ),
+        return Row(
+          mainAxisAlignment: node.mainAxisAlignment.value,
+          crossAxisAlignment: node.crossAxisAlignment.value,
+          children: children,
         );
       });
     }
