@@ -6,15 +6,11 @@ import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/models/variable.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
-class ColumnNode extends MultiOutputNode {
-  final RenderData _renderData = ColumnRenderData();
+class RowNode extends MultiOutputNode {
+  final RenderData _renderData;
 
   @override
   RenderData get renderData => _renderData;
-
-  final NodeSettigns _settigns = ColumnNodeSettigns();
-  @override
-  NodeSettigns get settings => _settigns;
 
   final List<String?> children = [];
 
@@ -29,9 +25,14 @@ class ColumnNode extends MultiOutputNode {
     defaultValue: CrossAxisAlignment.start,
   );
 
-  ColumnNode({required super.id, required super.position})
-      : super(
-          title: "Column",
+  final NodeSettigns _settigns = RowNodeSettigns();
+  @override
+  NodeSettigns get settings => _settigns;
+
+  RowNode({required super.id, required super.position})
+      : _renderData = RowRenderData(),
+        super(
+          title: "Row",
         );
 
   @override
@@ -52,11 +53,11 @@ class ColumnNode extends MultiOutputNode {
   }
 }
 
-class ColumnRenderData extends RenderData<ColumnNode> {
-  ColumnRenderData();
+class RowRenderData extends RenderData<RowNode> {
+  RowRenderData();
 
   @override
-  Iterable<NodeVariable> getVariables(ColumnNode node) => [
+  Iterable<NodeVariable> getVariables(RowNode node) => [
         node.mainAxisAlignment,
         node.crossAxisAlignment,
       ];
@@ -64,7 +65,7 @@ class ColumnRenderData extends RenderData<ColumnNode> {
   @override
   Widget Function() getBuilder(
     BlueprintState state,
-    ColumnNode node,
+    RowNode node,
   ) {
     List<Widget> children = node.children.nonNulls
         .map(
@@ -76,7 +77,7 @@ class ColumnRenderData extends RenderData<ColumnNode> {
 
     Widget builder() {
       return Builder(builder: (context) {
-        return Column(
+        return Row(
           mainAxisAlignment: node.mainAxisAlignment.value,
           crossAxisAlignment: node.crossAxisAlignment.value,
           children: children,
@@ -88,9 +89,9 @@ class ColumnRenderData extends RenderData<ColumnNode> {
   }
 }
 
-class ColumnNodeSettigns extends NodeSettigns<ColumnNode> {
+class RowNodeSettigns extends NodeSettigns<RowNode> {
   @override
-  Widget buildSettingsWidget(BuildContext context, ColumnNode node) {
+  Widget buildSettingsWidget(BuildContext context, RowNode node) {
     return ListView(
       children: [
         EnumValueEditor<MainAxisAlignment>(

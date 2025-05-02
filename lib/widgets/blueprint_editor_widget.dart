@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:unreal_editor/models/nodes/column.dart';
+import 'package:unreal_editor/models/nodes.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 import 'package:unreal_editor/widgets/context_menu_overlay.dart';
 import 'dart:async';
@@ -95,17 +95,6 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                   keyEvent.logicalKey == LogicalKeyboardKey.escape) {
                 editorState.deselectAllNodes();
                 editorState.hideContextMenu();
-              }
-              // save control status
-              if (keyEvent is KeyDownEvent &&
-                  keyEvent.logicalKey == LogicalKeyboardKey.controlLeft) {
-                editorState.isControlPressed = true;
-                print("Control pressed");
-              }
-              if (keyEvent is KeyUpEvent &&
-                  keyEvent.logicalKey == LogicalKeyboardKey.controlLeft) {
-                editorState.isControlPressed = false;
-                print("Control released");
               }
             },
             child: Stack(

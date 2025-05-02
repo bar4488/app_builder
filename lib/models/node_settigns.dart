@@ -1,58 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/models/node.dart';
-import 'package:unreal_editor/models/render_data.dart';
 import 'package:unreal_editor/models/pin.dart';
-import 'package:unreal_editor/state/blueprint_editor_state.dart';
+import 'package:unreal_editor/models/variable.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
 abstract class NodeSettigns<T extends Node> {
   Widget buildSettingsWidget(BuildContext context, T node);
-}
-
-class StringNodeSettigns extends NodeSettigns<StringNode> {
-  String? value;
-  StringNodeSettigns();
-
-  @override
-  Widget buildSettingsWidget(BuildContext context, StringNode node) {
-    // build a widget to edit the string value
-    return ListView(
-      children: [
-        StringValueEditor(pin: node.valuePin),
-      ],
-    );
-  }
-}
-
-class RowNodeSettigns extends NodeSettigns<RowNode> {
-  @override
-  Widget buildSettingsWidget(BuildContext context, RowNode node) {
-    return ListView(
-      children: [
-        EnumValueEditor<MainAxisAlignment>(
-          node: node,
-          variable: node.mainAxisAlignment,
-          enumValues: MainAxisAlignment.values.asMap().map(
-                (key, value) => MapEntry(
-                  value.toString(),
-                  value,
-                ),
-              ),
-        ),
-        EnumValueEditor<CrossAxisAlignment>(
-          node: node,
-          variable: node.crossAxisAlignment,
-          enumValues: CrossAxisAlignment.values.asMap().map(
-                (key, value) => MapEntry(
-                  value.toString(),
-                  value,
-                ),
-              ),
-        ),
-      ],
-    );
-  }
 }
 
 class EnumValueEditor<T> extends StatefulWidget {

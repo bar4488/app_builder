@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/state/blueprint_editor_state.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
@@ -45,7 +46,7 @@ class NodeWidget extends StatelessWidget {
                   onPanUpdate: onDragUpdate,
                   onPanEnd: onDragEnd,
                   onTap: () {
-                    if (editorState.isControlPressed) {
+                    if (HardwareKeyboard.instance.isControlPressed) {
                       context.read<BlueprintState>().switchHighlightColor(node);
                     } else {
                       editorState.selectNode(node.id, multiSelect: false);
@@ -53,7 +54,7 @@ class NodeWidget extends StatelessWidget {
                   },
                   onSecondaryTap: () {
                     // remove highlight
-                    if (editorState.isControlPressed) {
+                    if (HardwareKeyboard.instance.isControlPressed) {
                       context.read<BlueprintState>().removeHighlightColor(node);
                     } else {
                       editorState.deselectNode(node.id);

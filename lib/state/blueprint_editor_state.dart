@@ -48,8 +48,6 @@ class BlueprintEditorState extends ChangeNotifier {
 
   Node? selectedNode;
 
-  bool isControlPressed = false;
-
   BlueprintEditorState(this._blueprintState);
 
   void setHoveredConnection(Connection? connection) {

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:unreal_editor/models/connection.dart';
 import 'package:unreal_editor/models/node.dart';
+import 'package:unreal_editor/models/nodes/viewport.dart';
 import 'package:unreal_editor/models/pin.dart';
 
 class BlueprintState with ChangeNotifier {
