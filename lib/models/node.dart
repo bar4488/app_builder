@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:unreal_editor/models/render_data.dart';
 import 'package:unreal_editor/models/node_settigns.dart';
+import 'package:unreal_editor/models/variable.dart';
 import 'pin.dart';
 
 enum NodeType {
@@ -34,17 +35,21 @@ class Node with ChangeNotifier {
     Colors.purple,
   ];
   int highlightColorIndex = 0;
+
   Color? get highlightColor =>
       highlightColors[highlightColorIndex % highlightColors.length];
 
-  bool get isRenderable => renderData != null;
   RenderData? get renderData => null;
   NodeSettigns? get settings => null;
+
+  InputRenderPin? get inputRenderPin =>
+      inputPins.whereType<InputRenderPin>().firstOrNull;
 
   Node({
     required this.id,
     required this.title,
     required this.position,
+    bool hasRenderInput = false,
     this.type = NodeType.static,
     this.size = const Size(180, 100), // Default size
     List<Pin>? inputPins,
@@ -52,7 +57,7 @@ class Node with ChangeNotifier {
     this.isSelected = false,
   })  : inputPins = inputPins ?? [],
         outputPins = outputPins ?? [] {
-    if (isRenderable) {
+    if (hasRenderInput) {
       // add render pin to input at start of list
       this.inputPins.insert(
           0,
@@ -158,6 +163,10 @@ class Node with ChangeNotifier {
     highlightColorIndex = 0;
     notifyListeners();
   }
+
+  Iterable<NodeVariable> getVariables() {
+    return [];
+  }
 }
 
 abstract class MultiOutputNode extends Node {
@@ -165,7 +174,8 @@ abstract class MultiOutputNode extends Node {
     required super.id,
     required super.title,
     required super.position,
-    super.size, // Default size
+    super.hasRenderInput,
+    super.size,
     super.inputPins,
     super.outputPins,
     super.isSelected,
@@ -173,5 +183,5 @@ abstract class MultiOutputNode extends Node {
           type: NodeType.multiOutput,
         );
 
-  void addOutputRenderPin();
+  OutputRenderPin addOutputRenderPin();
 }

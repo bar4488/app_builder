@@ -32,34 +32,34 @@ class ColumnNode extends MultiOutputNode {
   ColumnNode({required super.id, required super.position})
       : super(
           title: "Column",
+          hasRenderInput: true,
         );
 
   @override
-  void addOutputRenderPin() {
+  OutputRenderPin addOutputRenderPin() {
     children.add(null);
     var index = children.length - 1;
-    addOutputPin(
-      OutputRenderPin(
-        nodeId: id,
-        label: "Output ${outputPins.length + 1}",
-        direction: PinDirection.output,
-        onRenderTargetChanged: (nodeId) {
-          children[index] = nodeId;
-          notifyListeners();
-        },
-      ),
+    var pin = OutputRenderPin(
+      nodeId: id,
+      label: "Output ${outputPins.length + 1}",
+      onRenderTargetChanged: (nodeId) {
+        children[index] = nodeId;
+        notifyListeners();
+      },
     );
+    addOutputPin(pin);
+    return pin;
   }
+
+  @override
+  Iterable<NodeVariable> getVariables() => [
+        mainAxisAlignment,
+        crossAxisAlignment,
+      ];
 }
 
 class ColumnRenderData extends RenderData<ColumnNode> {
   ColumnRenderData();
-
-  @override
-  Iterable<NodeVariable> getVariables(ColumnNode node) => [
-        node.mainAxisAlignment,
-        node.crossAxisAlignment,
-      ];
 
   @override
   Widget Function() getBuilder(

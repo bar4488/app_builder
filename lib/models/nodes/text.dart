@@ -1,35 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:unreal_editor/models/node.dart';
+import 'package:unreal_editor/models/node_settigns.dart';
 import 'package:unreal_editor/models/render_data.dart';
 import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/models/variable.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
 
 class TextNode extends Node {
-  final RenderData _renderData;
+  @override
+  final RenderData renderData = TextRenderData();
 
   @override
-  RenderData get renderData => _renderData;
+  final NodeSettigns settings = TextNodeSettigns();
 
   NodeVariable<String> text = NodeVariable<String>(name: "Text");
 
   TextNode({required super.id, required super.position})
-      : _renderData = TextRenderData(),
-        super(
+      : super(
           title: "Text",
+          hasRenderInput: true,
           type: NodeType.static,
-        ) {
-    addInputPin(
-      InputValuePin<String>(
-        nodeId: id,
-        label: "value",
-        onValueChanged: (value) {
-          text.setValueNode(value);
-          notifyListeners();
-        },
-      ),
-    );
-  }
+        );
+
+  @override
+  Iterable<NodeVariable> getVariables() => [
+        text,
+      ];
 }
 
 class TextRenderData extends RenderData<TextNode> {
@@ -48,9 +44,18 @@ class TextRenderData extends RenderData<TextNode> {
 
     return builder;
   }
+}
 
+class TextNodeSettigns extends NodeSettigns<TextNode> {
   @override
-  Iterable<NodeVariable> getVariables(TextNode node) => [
-        node.text,
-      ];
+  Widget buildSettingsWidget(BuildContext context, TextNode node) {
+    return ListView(
+      children: [
+        StringValueEditor(
+          node: node,
+          variable: node.text,
+        ),
+      ],
+    );
+  }
 }

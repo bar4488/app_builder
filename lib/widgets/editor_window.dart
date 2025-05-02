@@ -1,24 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
+import 'package:unreal_editor/state/editor_window_state.dart';
 import 'package:unreal_editor/widgets/preview_panel.dart';
 import 'package:unreal_editor/widgets/settings_panel.dart';
 import '../state/blueprint_editor_state.dart';
 import 'blueprint_editor_widget.dart';
 
-class EditorWindow extends StatefulWidget {
+class EditorWindow extends StatelessWidget {
   const EditorWindow({super.key});
 
   @override
-  State<EditorWindow> createState() => _EditorWindowState();
-}
-
-class _EditorWindowState extends State<EditorWindow> {
-  bool _leftDrawerOpen = true;
-  bool _rightDrawerOpen = false;
-
-  @override
   Widget build(BuildContext context) {
+    var windowState = context.watch<EditorWindowState>();
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
@@ -34,16 +28,15 @@ class _EditorWindowState extends State<EditorWindow> {
           title: const Text('Blueprint Editor'),
           actions: [
             IconButton(
-              icon: Icon(
-                  _leftDrawerOpen ? Icons.chevron_left : Icons.chevron_right),
-              onPressed: () =>
-                  setState(() => _leftDrawerOpen = !_leftDrawerOpen),
-            ),
+                icon: Icon(windowState.leftDrawerOpen
+                    ? Icons.chevron_left
+                    : Icons.chevron_right),
+                onPressed: windowState.toggleLeftDrawer),
             IconButton(
-              icon: Icon(
-                  _rightDrawerOpen ? Icons.chevron_right : Icons.chevron_left),
-              onPressed: () =>
-                  setState(() => _rightDrawerOpen = !_rightDrawerOpen),
+              icon: Icon(windowState.rightDrawerOpen
+                  ? Icons.chevron_right
+                  : Icons.chevron_left),
+              onPressed: windowState.toggleRightDrawer,
             ),
           ],
         ),
@@ -51,7 +44,7 @@ class _EditorWindowState extends State<EditorWindow> {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: _leftDrawerOpen ? 300 : 0,
+              width: windowState.leftDrawerOpen ? 300 : 0,
               child: UnconstrainedBox(
                 clipBehavior: Clip.antiAlias,
                 constrainedAxis: Axis.vertical,
@@ -76,7 +69,7 @@ class _EditorWindowState extends State<EditorWindow> {
             ),
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: _rightDrawerOpen ? 300 : 0,
+              width: windowState.rightDrawerOpen ? 300 : 0,
               child: UnconstrainedBox(
                 clipBehavior: Clip.antiAlias,
                 constrainedAxis: Axis.vertical,

@@ -9,6 +9,9 @@ class NodeVariable<T> with ChangeNotifier {
   InputValuePin<T>? inputPin;
   OutputValuePin<T>? outputPin;
 
+  bool get canBindInputPin =>
+      outputPin == null; // can bind input pin if no output pin is bound
+
   T? get valueOrNull {
     if (_valueNode == null) {
       if (defaultValue != null) {
@@ -32,6 +35,9 @@ class NodeVariable<T> with ChangeNotifier {
       throw Exception("Cannot set a value on a bounded variable '$name'!");
     }
     _valueNode = value;
+    if (outputPin != null) {
+      outputPin!.update(getValueNode());
+    }
     notifyListeners();
   }
 
@@ -48,6 +54,10 @@ class NodeVariable<T> with ChangeNotifier {
   void bindInputPin(InputValuePin<T>? pin) {
     if (inputPin != null) {
       inputPin!.onValueChanged = null;
+      if (_valueNode is! ConstValueNode<T>) {
+        // make sure we do not listen to the old value
+        _valueNode = null;
+      }
     }
     inputPin = pin;
     if (inputPin != null) {

@@ -50,6 +50,13 @@ class BlueprintEditorState extends ChangeNotifier {
 
   BlueprintEditorState(this._blueprintState);
 
+  FocusNode selectedFocus = FocusNode();
+
+  Offset? selectionRectStart;
+  Rect? selectionRect;
+
+  FocusNode focusNode = FocusNode();
+
   void setHoveredConnection(Connection? connection) {
     if (_hoveredConnection == connection) return; // No change
     _hoveredConnection = connection;
@@ -85,10 +92,16 @@ class BlueprintEditorState extends ChangeNotifier {
     _blueprintState.removeNode(nodeId);
   }
 
-  void setHoverPinKey(Pin? pin) {
+  void deleteSelectedNodes() {
+    _blueprintState.removeSelectedNodes();
+  }
+
+  void setHoverPin(Pin? pin) {
     _currentHoverPin = pin;
     notifyListeners();
   }
+
+  // void setHoverButton()
 
   // Add helper method to constrain position
   Offset _constrainPosition(Offset position, Size nodeSize) {
@@ -120,6 +133,7 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void selectNode(String nodeId, {bool multiSelect = false}) {
+    focusNode.requestFocus();
     final node = findNodeById(nodeId)!;
     if (!multiSelect) {
       for (var node in nodes) {
@@ -257,5 +271,31 @@ class BlueprintEditorState extends ChangeNotifier {
 
   Node? findNodeById(String id) {
     return _blueprintState.findNodeById(id);
+  }
+
+  void startSelection(Offset localPosition) {
+    focusNode.requestFocus();
+    selectionRectStart = screenToWorld(localPosition);
+  }
+
+  void updateSelection(Offset localPosition) {
+    if (selectionRectStart != null) {
+      final currentPos = screenToWorld(localPosition);
+      selectionRect = Rect.fromPoints(selectionRectStart!, currentPos);
+      for (var node in nodes) {
+        if (node.rect.overlaps(selectionRect!)) {
+          node.isSelected = true;
+        } else {
+          node.isSelected = false;
+        }
+      }
+      notifyListeners();
+    }
+  }
+
+  void endSelection() {
+    selectionRectStart = null;
+    selectionRect = null;
+    notifyListeners();
   }
 }

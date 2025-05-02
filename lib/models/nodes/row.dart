@@ -25,6 +25,12 @@ class RowNode extends MultiOutputNode {
     defaultValue: CrossAxisAlignment.start,
   );
 
+  @override
+  Iterable<NodeVariable> getVariables() => [
+        mainAxisAlignment,
+        crossAxisAlignment,
+      ];
+
   final NodeSettigns _settigns = RowNodeSettigns();
   @override
   NodeSettigns get settings => _settigns;
@@ -33,34 +39,28 @@ class RowNode extends MultiOutputNode {
       : _renderData = RowRenderData(),
         super(
           title: "Row",
+          hasRenderInput: true,
         );
 
   @override
-  void addOutputRenderPin() {
+  OutputRenderPin addOutputRenderPin() {
     children.add(null);
     var index = children.length - 1;
-    addOutputPin(
-      OutputRenderPin(
-        nodeId: id,
-        label: "Output ${outputPins.length + 1}",
-        direction: PinDirection.output,
-        onRenderTargetChanged: (nodeId) {
-          children[index] = nodeId;
-          notifyListeners();
-        },
-      ),
+    var pin = OutputRenderPin(
+      nodeId: id,
+      label: "Output ${outputPins.length + 1}",
+      onRenderTargetChanged: (nodeId) {
+        children[index] = nodeId;
+        notifyListeners();
+      },
     );
+    addOutputPin(pin);
+    return pin;
   }
 }
 
 class RowRenderData extends RenderData<RowNode> {
   RowRenderData();
-
-  @override
-  Iterable<NodeVariable> getVariables(RowNode node) => [
-        node.mainAxisAlignment,
-        node.crossAxisAlignment,
-      ];
 
   @override
   Widget Function() getBuilder(

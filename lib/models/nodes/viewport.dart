@@ -21,7 +21,6 @@ class ViewportNode extends Node {
       OutputRenderPin(
         nodeId: id,
         label: "Render",
-        direction: PinDirection.output,
         onRenderTargetChanged: (childId) {
           this.childId = childId;
           notifyListeners();
@@ -44,7 +43,7 @@ class ViewportRenderData extends RenderData<ViewportNode> {
   ) {
     var childId = node.childId;
     if (childId == null) {
-      throw NodeRenderException(node.id, "child is null");
+      return () => const Center(child: Text("Empty Viewport"));
     }
     var child = state.findNodeById(childId)!;
 

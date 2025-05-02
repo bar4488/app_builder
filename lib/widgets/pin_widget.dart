@@ -82,13 +82,13 @@ class PinWidget extends StatelessWidget {
         message: "${pin.label} (${pin.direction.name}, ${pin.type.name})",
         child: MouseRegion(
           onEnter: (event) {
-            editorState.setHoverPinKey(pin);
+            editorState.setHoverPin(pin);
           },
           onHover: (event) {
-            editorState.setHoverPinKey(pin);
+            editorState.setHoverPin(pin);
           },
           onExit: (event) {
-            editorState.setHoverPinKey(null);
+            editorState.setHoverPin(null);
           },
           child: Container(
             width: pinSize,

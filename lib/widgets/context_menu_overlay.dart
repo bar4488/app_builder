@@ -32,8 +32,11 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  var focusNode = FocusNode();
+
   @override
   void initState() {
+    focusNode.requestFocus();
     _menuItems = {
       NodeCategory.layout: [
         MenuItemData(
@@ -91,6 +94,7 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
                     child: TextField(
                       autofocus: true,
                       controller: _searchController,
+                      focusNode: focusNode,
                       decoration: const InputDecoration(
                         hintText: 'Search...',
                         isDense: true,
@@ -100,6 +104,12 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
                         ),
                         border: OutlineInputBorder(),
                       ),
+                      onSubmitted: (value) {
+                        if (_searchResults.length == 1) {
+                          _searchResults.first.onTap!();
+                        }
+                        widget.onDismiss();
+                      },
                       onChanged: (value) =>
                           setState(() => _searchQuery = value),
                     ),

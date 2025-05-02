@@ -15,10 +15,8 @@ abstract class RenderData<T extends Node> {
     T node,
   );
 
-  Iterable<NodeVariable> getVariables(T node);
-
   Widget build(BlueprintState state, T node) {
-    var variables = getVariables(node);
+    var variables = node.getVariables();
 
     // if null, throw exception
     for (var e in variables) {

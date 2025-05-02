@@ -22,20 +22,6 @@ class BlueprintState with ChangeNotifier {
     addNode(viewportNode);
   }
 
-  void removeConnection(Connection connection) {
-    connections.remove(connection);
-    connection.startPin.onConnectionChanged();
-    connection.endPin.onConnectionChanged();
-    notifyListeners();
-  }
-
-  void removeConnectionsForPin(Pin pin) {
-    connections.removeWhere(
-      (conn) => conn.startPin == pin || conn.endPin == pin,
-    );
-    notifyListeners();
-  }
-
   // --- Helpers ---
   Node? findNodeById(String id) {
     return _nodeMap[id];
@@ -90,6 +76,30 @@ class BlueprintState with ChangeNotifier {
     notifyListeners();
   }
 
+  void removeConnection(Connection connection) {
+    connections.remove(connection);
+    connection.startPin.onConnectionChanged();
+    connection.endPin.onConnectionChanged();
+    notifyListeners();
+  }
+
+  void removeConnectionsForPin(Pin pin) {
+    connections
+        .where(
+          (conn) => conn.startPin == pin || conn.endPin == pin,
+        )
+        .toList()
+        .forEach((conn) {
+      print(
+        "Removing connection: ${conn.startPin.key} -> ${conn.endPin.key}",
+      );
+      conn.unlink();
+      conn.startPin.onConnectionChanged();
+      conn.endPin.onConnectionChanged();
+    });
+    notifyListeners();
+  }
+
   void addNode(Node node) {
     _nodes.add(node);
     _nodeMap[node.id] = node;
@@ -97,10 +107,49 @@ class BlueprintState with ChangeNotifier {
   }
 
   void removeNode(String nodeId) {
-    _nodes.removeWhere((node) => node.id == nodeId);
-    // Remove connections associated with the deleted node
-    connections.removeWhere((conn) =>
-        conn.startPin.nodeId == nodeId || conn.endPin.nodeId == nodeId);
+    var node = findNodeById(nodeId);
+    if (node == null) {
+      return;
+    }
+    removeNodes([node]);
+  }
+
+  void removeSelectedNodes() {
+    var nodesToRemove = _nodes.where((node) => node.isSelected).toList();
+    removeNodes(nodesToRemove);
+  }
+
+  void removeNodes(Iterable<Node> nodesToRemove) {
+    nodesToRemove = nodesToRemove.where((node) => node.id != viewportNode.id);
+    if (nodesToRemove.isEmpty) {
+      return;
+    }
+    var idsToRemove = nodesToRemove
+        .map(
+          (e) => e.id,
+        )
+        .toSet();
+
+    Set<Pin> changedPins = {};
+    connections
+        .where((conn) =>
+            idsToRemove.contains(conn.startPin.nodeId) ||
+            idsToRemove.contains(conn.endPin.nodeId))
+        .toList()
+        .forEach((conn) {
+      conn.unlink();
+      changedPins.add(conn.startPin);
+      changedPins.add(conn.endPin);
+    });
+
+    for (var pin in changedPins) {
+      pin.onConnectionChanged();
+    }
+
+    for (var node in nodesToRemove) {
+      _nodes.remove(node);
+      _nodeMap.remove(node.id);
+    }
     notifyListeners();
   }
 
@@ -111,6 +160,15 @@ class BlueprintState with ChangeNotifier {
 
   void switchHighlightColor(Node node) {
     node.nextHighlightColor(); // Toggle selection could be added later
+    notifyListeners();
+  }
+
+  void removeNodeInputPin(Node node, InputValuePin inputValuePin) {
+    inputValuePin.connections.toList().forEach((conn) {
+      conn.unlink();
+      conn.startPin.onConnectionChanged();
+    });
+    node.removeInputPin(inputValuePin);
     notifyListeners();
   }
 }

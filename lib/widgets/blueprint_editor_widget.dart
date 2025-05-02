@@ -85,18 +85,23 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
     return ListenableBuilder(
       listenable: editorState,
       builder: (context, child) {
-        return GestureDetector(
-          onTapDown: (details) => _focusNode.requestFocus(),
-          child: KeyboardListener(
-            focusNode: _focusNode,
-            autofocus: true,
-            onKeyEvent: (keyEvent) {
-              if (keyEvent is KeyDownEvent &&
-                  keyEvent.logicalKey == LogicalKeyboardKey.escape) {
-                editorState.deselectAllNodes();
-                editorState.hideContextMenu();
-              }
-            },
+        return KeyboardListener(
+          focusNode: editorState.focusNode,
+          autofocus: true,
+          onKeyEvent: (keyEvent) {
+            if (keyEvent is KeyDownEvent &&
+                keyEvent.logicalKey == LogicalKeyboardKey.escape) {
+              editorState.deselectAllNodes();
+              editorState.hideContextMenu();
+            }
+            // delete
+            if (keyEvent is KeyDownEvent &&
+                keyEvent.logicalKey == LogicalKeyboardKey.delete) {
+              editorState.deleteSelectedNodes();
+            }
+          },
+          child: GestureDetector(
+            onTapDown: (details) => _focusNode.requestFocus(),
             child: Stack(
               children: [
                 Listener(
@@ -118,140 +123,186 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                       }
                       editorState.setHoveredConnection(null);
                     },
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onSecondaryTapUp: (details) {
-                        final RenderBox box =
-                            context.findRenderObject() as RenderBox;
-                        final localPosition = box.globalToLocal(
-                          details.globalPosition,
-                        );
-                        editorState.showContextMenu(localPosition);
+                    child: RawGestureDetector(
+                      gestures: {
+                        PanGestureRecognizer:
+                            GestureRecognizerFactoryWithHandlers<
+                                PanGestureRecognizer>(
+                          () => PanGestureRecognizer(
+                            debugOwner: this,
+                            // This recognizer accepts any button press made with a secondary button.
+                            allowedButtonsFilter: (int buttons) =>
+                                buttons & kSecondaryButton != 0,
+                          ),
+                          (PanGestureRecognizer instance) {
+                            instance
+                              ..dragStartBehavior = DragStartBehavior.down
+                              ..onStart = (details) {
+                                _lastPanPosition = details.globalPosition;
+                                editorState.deselectAllNodes();
+                                editorState.hideContextMenu();
+                              }
+                              ..onUpdate = (details) {
+                                final delta =
+                                    details.globalPosition - _lastPanPosition;
+                                if (editorState.nodes
+                                        .where((n) => n.isSelected)
+                                        .isEmpty &&
+                                    editorState.dragStartPin == null) {
+                                  editorState.panCanvas(delta);
+                                }
+                                _lastPanPosition = details.globalPosition;
+                              };
+                          },
+                        ),
                       },
-                      onTapDown: (_) => editorState.hideContextMenu(),
-                      onPanStart: (details) {
-                        _lastPanPosition = details.globalPosition;
-                        editorState.deselectAllNodes();
-                        editorState.hideContextMenu();
-                      },
-                      onTap: () => editorState.deselectAllNodes(),
-                      onTapUp: (details) {
-                        final painter = ConnectionPainter(
-                          editorState: editorState,
-                        );
-                        final RenderBox box =
-                            context.findRenderObject() as RenderBox;
-                        final localPosition = box.globalToLocal(
-                          details.globalPosition,
-                        );
-                        final hitConnection = painter.getConnectionAtPoint(
-                          editorState.screenToWorld(localPosition),
-                          reversed: true,
-                        );
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onSecondaryTapUp: (details) {
+                          final RenderBox box =
+                              context.findRenderObject() as RenderBox;
+                          final localPosition = box.globalToLocal(
+                            details.globalPosition,
+                          );
+                          editorState.showContextMenu(localPosition);
+                        },
+                        onTapDown: (_) => editorState.hideContextMenu(),
+                        onTap: () => editorState.deselectAllNodes(),
+                        onTapUp: (details) {
+                          final painter = ConnectionPainter(
+                            editorState: editorState,
+                          );
+                          final RenderBox box =
+                              context.findRenderObject() as RenderBox;
+                          final localPosition = box.globalToLocal(
+                            details.globalPosition,
+                          );
+                          final hitConnection = painter.getConnectionAtPoint(
+                            editorState.screenToWorld(localPosition),
+                            reversed: true,
+                          );
 
-                        if (hitConnection != null) {
-                          blueprintState.removeConnection(hitConnection);
-                          return;
-                        }
+                          if (hitConnection != null) {
+                            blueprintState.removeConnection(hitConnection);
+                            return;
+                          }
 
-                        editorState.deselectAllNodes();
-                        editorState.hideContextMenu();
-                      },
-                      onPanUpdate: (details) {
-                        final delta = details.globalPosition - _lastPanPosition;
-                        if (editorState.nodes
-                                .where((n) => n.isSelected)
-                                .isEmpty &&
-                            editorState.dragStartPin == null) {
-                          editorState.panCanvas(delta);
-                        }
-                        _lastPanPosition = details.globalPosition;
-                      },
-                      onPanEnd: (details) {
-                        if (editorState.dragStartPin != null) {
-                          editorState.endDraggingConnection();
-                        }
-                      },
-                      child: Container(
-                        constraints: const BoxConstraints.expand(),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned(
-                              top: 0,
-                              left: 0,
-                              width: 4000,
-                              height: 4000,
-                              child: Transform(
-                                alignment: Alignment.topLeft,
-                                transformHitTests: true,
-                                transform: Matrix4.identity()
-                                  ..scale(editorState.scale)
-                                  ..translate(
-                                    -editorState.canvasOffset.dx,
-                                    -editorState.canvasOffset.dy,
-                                  ),
-                                child: Container(
-                                  width: 4000,
-                                  height: 4000,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: Colors.blueGrey,
-                                      width: 3,
+                          editorState.deselectAllNodes();
+                          editorState.hideContextMenu();
+                        },
+                        onPanStart: (details) {
+                          editorState.startSelection(
+                            details.localPosition,
+                          );
+                        },
+                        onPanUpdate: (details) {
+                          print(
+                              "pan update position: ${details.globalPosition}, local: ${details.localPosition}");
+                          editorState.updateSelection(
+                            details.localPosition,
+                          );
+                        },
+                        onPanCancel: () {
+                          editorState.deselectAllNodes();
+                        },
+                        onPanEnd: (details) {
+                          editorState.endSelection();
+                        },
+                        child: Container(
+                          constraints: const BoxConstraints.expand(),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned(
+                                top: 0,
+                                left: 0,
+                                width: 4000,
+                                height: 4000,
+                                child: Transform(
+                                  alignment: Alignment.topLeft,
+                                  transformHitTests: true,
+                                  transform: Matrix4.identity()
+                                    ..scale(editorState.scale)
+                                    ..translate(
+                                      -editorState.canvasOffset.dx,
+                                      -editorState.canvasOffset.dy,
                                     ),
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      Positioned.fill(
-                                        child: CustomPaint(
-                                          painter: GridPainter(
-                                            editorState.canvasOffset,
-                                            editorState.scale,
+                                  child: Container(
+                                    width: 4000,
+                                    height: 4000,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.blueGrey,
+                                        width: 3,
+                                      ),
+                                    ),
+                                    child: Stack(
+                                      children: [
+                                        Positioned.fill(
+                                          child: CustomPaint(
+                                            painter: GridPainter(
+                                              editorState.canvasOffset,
+                                              editorState.scale,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      Positioned.fill(
-                                        child: CustomPaint(
-                                          painter: ConnectionPainter(
-                                            editorState: editorState,
+                                        Positioned.fill(
+                                          child: CustomPaint(
+                                            painter: ConnectionPainter(
+                                              editorState: editorState,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      ...editorState.nodes.map(
-                                        (node) => Positioned(
-                                          key: ValueKey(
-                                            node.id,
-                                          ),
-                                          left: node.position.dx,
-                                          top: node.position.dy,
-                                          child: NodeWidget(
-                                            node: node,
-                                            onDragUpdate: (details) =>
-                                                _handleNodeDrag(
-                                              context,
-                                              details,
+                                        ...editorState.nodes.map(
+                                          (node) => Positioned(
+                                            key: ValueKey(
                                               node.id,
                                             ),
-                                            onDragEnd: (details) =>
-                                                _autoScrollTimer?.cancel(),
+                                            left: node.position.dx,
+                                            top: node.position.dy,
+                                            child: NodeWidget(
+                                              node: node,
+                                              onDragUpdate: (details) =>
+                                                  _handleNodeDrag(
+                                                context,
+                                                details,
+                                                node.id,
+                                              ),
+                                              onDragEnd: (details) =>
+                                                  _autoScrollTimer?.cancel(),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                        if (editorState.selectionRect != null)
+                                          Positioned.fromRect(
+                                            rect: editorState.selectionRect!,
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                border: Border.all(
+                                                  color: Colors.blue,
+                                                  width: 2,
+                                                ),
+                                                color: Colors.blue
+                                                    .withOpacity(0.3),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            IgnorePointer(
-                              child: Text(
-                                "${editorState.canvasOffset}\nScale: ${editorState.scale}",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 22,
+                              IgnorePointer(
+                                child: Text(
+                                  "${editorState.canvasOffset}\nScale: ${editorState.scale}",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

@@ -73,7 +73,8 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
                         },
                 ),
               ),
-              BindButton<T>(node: widget.node, variable: widget.variable)
+              if (widget.variable.canBindInputPin)
+                BindButton<T>(node: widget.node, variable: widget.variable)
             ],
           );
         });
@@ -81,21 +82,36 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
 }
 
 class StringValueEditor extends StatelessWidget {
-  final OutputValuePin<String> pin;
-  final String label;
+  final Node node;
+  final NodeVariable<String> variable;
   const StringValueEditor(
-      {super.key, required this.pin, this.label = "String Value"});
+      {super.key, required this.node, required this.variable});
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: TextEditingController(text: pin.value?.value),
-      onChanged: (newValue) {
-        pin.update(ConstValueNode(newValue));
-        context.read<BlueprintState>().notifyListeners();
-      },
-      decoration: InputDecoration(labelText: label),
-    );
+    return ListenableBuilder(
+        listenable: variable,
+        builder: (context, child) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: TextEditingController(text: variable.valueOrNull),
+                  enabled: variable.inputPin == null,
+                  onChanged: (newValue) {
+                    variable.setValueNode(ConstValueNode(newValue));
+                    context.read<BlueprintState>().notifyListeners();
+                  },
+                  decoration: InputDecoration(labelText: variable.name),
+                ),
+              ),
+              if (variable.canBindInputPin)
+                BindButton<String>(node: node, variable: variable)
+            ],
+          );
+        });
   }
 }
 
@@ -107,16 +123,15 @@ class BindButton<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<BlueprintState>();
+    var state = context.watch<BlueprintState>();
     return IconButton(
       icon: Icon(variable.inputPin == null ? Icons.link : Icons.link_off),
       onPressed: () {
         if (variable.inputPin != null) {
-          node.removeInputPin(variable.inputPin!);
+          state.removeNodeInputPin(node, variable.inputPin!);
           variable.bindInputPin(null);
           return;
         }
-        var state = context.read<BlueprintState>();
         var inputPin = InputValuePin<T>(
           nodeId: node.id,
           label: variable.name,

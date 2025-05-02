@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:unreal_editor/state/editor_window_state.dart';
 import 'package:unreal_editor/widgets/editor_window.dart';
 
 void main() {
@@ -16,7 +18,14 @@ class BlueprintEditorApp extends StatelessWidget {
         primarySwatch: Colors.blueGrey,
         brightness: Brightness.dark,
       ),
-      home: const EditorWindow(),
+      home: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (context) => EditorWindowState(),
+          ),
+        ],
+        child: const EditorWindow(),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }

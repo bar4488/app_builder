@@ -84,12 +84,11 @@ class OutputRenderPin extends Pin {
   OutputRenderPin({
     required String nodeId,
     required String label,
-    required PinDirection direction,
     required this.onRenderTargetChanged,
   }) : super(
           nodeId: nodeId,
           label: label,
-          direction: direction,
+          direction: PinDirection.output,
           type: PinType.render,
         );
 

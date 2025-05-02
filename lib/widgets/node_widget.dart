@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:unreal_editor/models/connection.dart';
+import 'package:unreal_editor/models/pin.dart';
 import 'package:unreal_editor/state/blueprint_editor_state.dart';
 import 'package:unreal_editor/state/blueprint_state.dart';
+import 'package:unreal_editor/state/editor_window_state.dart';
 import '../models/node.dart';
 import 'pin_widget.dart';
 
-class NodeWidget extends StatelessWidget {
+class NodeWidget extends StatefulWidget {
   final Node node;
   final Function(DragUpdateDetails) onDragUpdate;
   final Function(DragEndDetails)? onDragEnd;
@@ -19,65 +22,118 @@ class NodeWidget extends StatelessWidget {
   });
 
   @override
+  State<NodeWidget> createState() => _NodeWidgetState();
+}
+
+class _NodeWidgetState extends State<NodeWidget> {
+  FocusNode focusNode = FocusNode();
+
+  int? tapMilliseconds;
+  OutputRenderPin? hoveredPin;
+
+  @override
+  void initState() {
+    if (widget.node is MultiOutputNode) {
+      var node = widget.node as MultiOutputNode;
+      hoveredPin = OutputRenderPin(
+        nodeId: widget.node.id,
+        label: "hover_render_pin",
+        onRenderTargetChanged: (nodeId) {
+          print("hovered pin changed to $nodeId");
+          if (nodeId == null) {
+            return;
+          }
+          var state = context.read<BlueprintState>();
+          var pin = node.addOutputRenderPin();
+          var other = state.findNodeById(nodeId)!;
+
+          state.removeConnectionsForPin(hoveredPin!);
+          state.addConnection(
+            Connection(startPin: pin, endPin: other.inputRenderPin!),
+          );
+        },
+      );
+    }
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    var padding = node.padding;
+    var padding = widget.node.padding;
     var editorState = context.read<BlueprintEditorState>();
 
-    var nodeError = editorState.getNodeError(node.id);
+    var nodeError = editorState.getNodeError(widget.node.id);
 
     return ListenableBuilder(
-        listenable: node,
+        listenable: widget.node,
         builder: (context, child) {
           return Stack(
             clipBehavior: Clip.none,
             children: [
               Container(
                 alignment: Alignment.center,
-                width: node.size.width + padding * 2,
-                height: node.size.height + padding * 2,
+                width: widget.node.size.width + padding * 2,
+                height: widget.node.size.height + padding * 2,
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onPanStart: (details) {
                     editorState.selectNode(
-                      node.id,
+                      widget.node.id,
                       multiSelect: false,
                     );
                   },
-                  onPanUpdate: onDragUpdate,
-                  onPanEnd: onDragEnd,
+                  onPanUpdate: widget.onDragUpdate,
+                  onPanEnd: widget.onDragEnd,
                   onTap: () {
-                    if (HardwareKeyboard.instance.isControlPressed) {
-                      context.read<BlueprintState>().switchHighlightColor(node);
+                    var newTapMilli = DateTime.now().millisecondsSinceEpoch;
+                    if (tapMilliseconds != null &&
+                        newTapMilli - tapMilliseconds! < 300) {
+                      context.read<EditorWindowState>().toggleRightDrawer();
+                      editorState.selectNode(widget.node.id,
+                          multiSelect: false);
+                      tapMilliseconds = null;
                     } else {
-                      editorState.selectNode(node.id, multiSelect: false);
+                      tapMilliseconds = newTapMilli;
+                      if (HardwareKeyboard.instance.isControlPressed) {
+                        context
+                            .read<BlueprintState>()
+                            .switchHighlightColor(widget.node);
+                      } else {
+                        editorState.selectNode(widget.node.id,
+                            multiSelect: false);
+                      }
                     }
                   },
                   onSecondaryTap: () {
                     // remove highlight
                     if (HardwareKeyboard.instance.isControlPressed) {
-                      context.read<BlueprintState>().removeHighlightColor(node);
+                      context
+                          .read<BlueprintState>()
+                          .removeHighlightColor(widget.node);
                     } else {
-                      editorState.deselectNode(node.id);
+                      editorState.deselectNode(widget.node.id);
                     }
                   },
                   child: Material(
-                    elevation: node.isSelected || node.highlightColor != null
+                    elevation: widget.node.isSelected ||
+                            widget.node.highlightColor != null
                         ? 8.0
                         : 4.0,
                     borderRadius: BorderRadius.circular(8.0),
                     child: Container(
-                      width: node.size.width,
-                      height: node.size.height,
+                      width: widget.node.size.width,
+                      height: widget.node.size.height,
                       decoration: BoxDecoration(
-                        color: node.isSelected
+                        color: widget.node.isSelected
                             ? Colors.blueGrey[700]
                             : Colors.blueGrey[900],
                         borderRadius: BorderRadius.circular(8.0),
                         border: Border.all(
-                          color: node.isSelected
+                          color: widget.node.isSelected
                               ? Colors.lightBlueAccent
-                              : (node.highlightColor ?? Colors.grey[700]!),
-                          width: node.isSelected ? 2.0 : 1.0,
+                              : (widget.node.highlightColor ??
+                                  Colors.grey[700]!),
+                          width: widget.node.isSelected ? 2.0 : 1.0,
                         ),
                       ),
                       child: Stack(
@@ -100,7 +156,7 @@ class NodeWidget extends StatelessWidget {
                                 ),
                               ),
                               child: Text(
-                                node.title,
+                                widget.node.title,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
@@ -109,26 +165,40 @@ class NodeWidget extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (node is MultiOutputNode)
+                          if (widget.node is MultiOutputNode)
                             Positioned(
                               bottom: 8,
                               right: 8,
-                              child: GestureDetector(
-                                onTap: () {
-                                  (node as MultiOutputNode)
-                                      .addOutputRenderPin();
-                                  editorState.notifyListeners();
+                              child: MouseRegion(
+                                onEnter: (event) {
+                                  editorState.setHoverPin(hoveredPin);
                                 },
-                                child: Container(
-                                  padding: const EdgeInsets.all(4.0),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.lightBlueAccent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.add,
-                                    size: 16.0,
-                                    color: Colors.white,
+                                onHover: (event) {
+                                  editorState.setHoverPin(hoveredPin);
+                                },
+                                onExit: (event) {
+                                  editorState.setHoverPin(null);
+                                },
+                                child: GestureDetector(
+                                  onTap: () {
+                                    (widget.node as MultiOutputNode)
+                                        .addOutputRenderPin();
+                                    editorState.notifyListeners();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4.0),
+                                    decoration: BoxDecoration(
+                                      color: editorState.currentHoverPin ==
+                                              hoveredPin
+                                          ? Colors.lightBlueAccent
+                                          : Colors.blueGrey,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.add,
+                                      size: 16.0,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -139,14 +209,14 @@ class NodeWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              ...node.inputPins.map(
+              ...widget.node.inputPins.map(
                 (pin) => Positioned(
                   left: padding + pin.relativePosition.dx - 6,
                   top: padding + pin.relativePosition.dy,
                   child: PinWidget(pin: pin),
                 ),
               ),
-              ...node.inputPins.map(
+              ...widget.node.inputPins.map(
                 (pin) => Positioned(
                   left: padding + 6 + 2,
                   top: padding + pin.relativePosition.dy - 2,
@@ -159,14 +229,14 @@ class NodeWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              ...node.outputPins.map(
+              ...widget.node.outputPins.map(
                 (pin) => Positioned(
                   left: padding + pin.relativePosition.dx - 6,
                   top: padding + pin.relativePosition.dy,
                   child: PinWidget(pin: pin),
                 ),
               ),
-              ...node.outputPins.map(
+              ...widget.node.outputPins.map(
                 (pin) => Positioned(
                   right: padding + 6 + 2,
                   top: padding + pin.relativePosition.dy - 2,
