@@ -77,10 +77,13 @@ class _NodeWidgetState extends State<NodeWidget> {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onPanStart: (details) {
-                    editorState.selectNode(
-                      widget.node.id,
-                      multiSelect: false,
-                    );
+                    // in case multiple nodes are selected, we don't want to change the selection
+                    if (!widget.node.isSelected) {
+                      editorState.selectNode(
+                        widget.node.id,
+                        multiSelect: false,
+                      );
+                    }
                   },
                   onPanUpdate: widget.onDragUpdate,
                   onPanEnd: widget.onDragEnd,

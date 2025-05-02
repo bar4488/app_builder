@@ -66,14 +66,14 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
       ) {
         editorState.panCanvas(scrollDelta);
         // Also move the node to maintain relative position
-        editorState.moveNode(nodeId, -scrollDelta / editorState.scale);
+        editorState.moveSelectedNodes(-scrollDelta / editorState.scale);
       });
     } else {
       _autoScrollTimer?.cancel();
     }
 
     // Move the node with the drag
-    editorState.moveNode(nodeId, details.delta);
+    editorState.moveSelectedNodes(details.delta);
   }
 
   final FocusNode _focusNode = FocusNode();
@@ -139,18 +139,13 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                               ..dragStartBehavior = DragStartBehavior.down
                               ..onStart = (details) {
                                 _lastPanPosition = details.globalPosition;
-                                editorState.deselectAllNodes();
+                                // editorState.deselectAllNodes();
                                 editorState.hideContextMenu();
                               }
                               ..onUpdate = (details) {
                                 final delta =
                                     details.globalPosition - _lastPanPosition;
-                                if (editorState.nodes
-                                        .where((n) => n.isSelected)
-                                        .isEmpty &&
-                                    editorState.dragStartPin == null) {
-                                  editorState.panCanvas(delta);
-                                }
+                                editorState.panCanvas(delta);
                                 _lastPanPosition = details.globalPosition;
                               };
                           },
@@ -203,7 +198,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                           );
                         },
                         onPanCancel: () {
-                          editorState.deselectAllNodes();
+                          // editorState.deselectAllNodes();
                         },
                         onPanEnd: (details) {
                           editorState.endSelection();

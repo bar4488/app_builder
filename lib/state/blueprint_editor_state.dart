@@ -125,6 +125,21 @@ class BlueprintEditorState extends ChangeNotifier {
     }
   }
 
+  void moveSelectedNodes(Offset delta) {
+    bool changed = false;
+    for (var node in nodes) {
+      if (node.isSelected) {
+        final newPosition =
+            _constrainPosition(node.position + delta, node.size);
+        if (newPosition != node.position) {
+          node.position = newPosition;
+          changed = true;
+        }
+      }
+    }
+    if (changed) notifyListeners();
+  }
+
   void deselectNode(String nodeId) {
     final node = findNodeById(nodeId)!;
     node.isSelected = false;
