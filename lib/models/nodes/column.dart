@@ -1,11 +1,11 @@
 import 'package:app_builder/state/preview_state.dart';
+import 'package:app_builder/utils/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/render_data.dart';
 import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/pin.dart';
 import 'package:app_builder/models/variable.dart';
-import 'package:app_builder/state/blueprint_state.dart';
 
 class ColumnNode extends MultiOutputNode {
   final RenderData _renderData = ColumnRenderData();
@@ -98,26 +98,12 @@ class ColumnNodeSettigns extends NodeSettigns<ColumnNode> {
         EnumValueEditor<MainAxisAlignment>(
           node: node,
           variable: node.mainAxisAlignment,
-          enumValues: MainAxisAlignment.values
-              .map(
-                (value) => MapEntry(
-                  value.name,
-                  value,
-                ),
-              )
-              .toList(),
+          enumType: Enums.mainAxisAlignment,
         ),
         EnumValueEditor<CrossAxisAlignment>(
           node: node,
           variable: node.crossAxisAlignment,
-          enumValues: CrossAxisAlignment.values
-              .map(
-                (value) => MapEntry(
-                  value.name,
-                  value,
-                ),
-              )
-              .toList(),
+          enumType: Enums.crossAxisAlignment,
         ),
       ],
     );

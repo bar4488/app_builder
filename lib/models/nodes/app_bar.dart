@@ -1,5 +1,6 @@
 import 'package:app_builder/models/pin.dart';
 import 'package:app_builder/state/preview_state.dart';
+import 'package:app_builder/utils/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/node_settings.dart';
@@ -15,6 +16,11 @@ class AppBarNode extends Node {
 
   RenderTarget titleWidget = RenderTarget(
     name: "Title",
+    required: false,
+  );
+
+  NodeVariable<Color?> color = NodeVariable(
+    name: "Color",
   );
 
   AppBarNode(
@@ -25,7 +31,7 @@ class AppBarNode extends Node {
         );
 
   @override
-  Iterable<NodeVariable> getVariables() => [];
+  Iterable<NodeVariable> getVariables() => [color];
 
   @override
   Iterable<RenderTarget> getRenderTargets() => [titleWidget];
@@ -47,11 +53,12 @@ class AppBarRenderData extends RenderData<AppBarNode> {
     PreviewState state,
     AppBarNode node,
   ) {
-    Widget title = node.titleWidget.build(state);
+    Widget? title = node.titleWidget.tryBuild(state);
 
     Widget builder() {
       return AppBar(
         title: title,
+        backgroundColor: node.color.value,
       );
     }
 
@@ -63,7 +70,13 @@ class AppBarNodeSettigns extends NodeSettigns<AppBarNode> {
   @override
   Widget buildSettingsWidget(BuildContext context, AppBarNode node) {
     return ListView(
-      children: const [],
+      children: [
+        EnumValueEditor<Color?>(
+          node: node,
+          variable: node.color,
+          enumType: Enums.color,
+        ),
+      ],
     );
   }
 }

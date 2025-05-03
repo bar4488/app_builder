@@ -6,7 +6,6 @@ import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/render_data.dart';
 import 'package:app_builder/models/variable.dart';
-import 'package:app_builder/state/blueprint_state.dart';
 import 'package:runtime_type/runtime_type.dart';
 
 class TextNode extends Node {

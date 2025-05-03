@@ -78,23 +78,12 @@ class ContainerNodeSettigns extends NodeSettigns<ContainerNode> {
         EnumValueEditor<Color?>(
           node: node,
           variable: node.color,
-          enumValues: Enums.colors.nullableEnumValues,
-          prefixes: [
-            null,
-            ...Enums.colors.enumValues
-                .map(
-                  (e) => CircleAvatar(
-                    backgroundColor: e.value,
-                    radius: 8,
-                  ),
-                )
-                .toList()
-          ],
+          enumType: Enums.color,
         ),
         EnumValueEditor<Alignment>(
           node: node,
           variable: node.alignment,
-          enumValues: Enums.alignment.enumValues,
+          enumType: Enums.alignment,
         ),
       ],
     );

@@ -1,5 +1,7 @@
 import 'package:app_builder/models/nodes/app_bar.dart';
+import 'package:app_builder/models/nodes/debug_print.dart';
 import 'package:app_builder/models/nodes/enum_node.dart';
+import 'package:app_builder/models/nodes/gesture_detector.dart';
 import 'package:app_builder/models/nodes/scaffold.dart';
 import 'package:app_builder/models/pin.dart';
 import 'package:app_builder/state/blueprint_state.dart';
@@ -19,6 +21,8 @@ enum NodeCategory {
   widget,
   data,
   internal,
+  debug,
+  events,
 }
 
 List<NodeType> nodeTypes = [
@@ -94,6 +98,22 @@ List<NodeType> nodeTypes = [
     category: NodeCategory.widget,
     nodeBuilder: (id, position, blueprint) =>
         ContainerNode(id: id, position: position, blueprint: blueprint),
+  ),
+  NodeType(
+    name: "DebugPrint",
+    isRenderInput: true,
+    isRenderOutput: true,
+    category: NodeCategory.debug,
+    nodeBuilder: (id, position, blueprint) =>
+        DebugPrintNode(id: id, position: position, blueprint: blueprint),
+  ),
+  NodeType(
+    name: "GestureDetector",
+    isRenderInput: true,
+    isRenderOutput: true,
+    category: NodeCategory.events,
+    nodeBuilder: (id, position, blueprint) =>
+        GestureDetectorNode(id: id, position: position, blueprint: blueprint),
   ),
 ];
 

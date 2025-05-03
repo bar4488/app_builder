@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:app_builder/models/pin.dart';
+import 'package:runtime_type/runtime_type.dart';
 
 class NodeVariable<T> with ChangeNotifier {
   String name;
@@ -10,6 +11,8 @@ class NodeVariable<T> with ChangeNotifier {
 
   final bool _canBindInput;
   bool get canBindInput => _canBindInput;
+
+  RuntimeType<T> get type => RuntimeType<T>();
 
   T? get constValueOrNull {
     if (_valueNode?.isConst() == true) {
@@ -30,7 +33,7 @@ class NodeVariable<T> with ChangeNotifier {
 
   T get value {
     var value = valueOrNull;
-    return value!;
+    return value as T;
   }
 
   void setValueNode(ValueNode<T>? value) {

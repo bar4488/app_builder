@@ -78,14 +78,14 @@ class EnumNodeSettigns extends NodeSettigns<EnumNode> {
         EnumValueEditor(
           node: node,
           variable: node.enumType,
-          enumValues: Enums.types.enumValues,
+          enumType: Enums.types,
         ),
         if (enumType != null)
           EnumValueEditor<Object>(
             key: ValueKey(enumType),
             node: node,
             variable: node.enumValue,
-            enumValues: enumType.enumValues.cast(),
+            enumType: enumType,
           ),
       ],
     );

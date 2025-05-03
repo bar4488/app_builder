@@ -213,8 +213,8 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                               Positioned(
                                 top: 0,
                                 left: 0,
-                                width: 4000,
-                                height: 4000,
+                                width: BlueprintState.size,
+                                height: BlueprintState.size,
                                 child: Transform(
                                   alignment: Alignment.topLeft,
                                   transformHitTests: true,
@@ -294,7 +294,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                                   "${editorState.canvasOffset}\nScale: ${editorState.scale}",
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 22,
+                                    fontSize: 14,
                                   ),
                                 ),
                               ),

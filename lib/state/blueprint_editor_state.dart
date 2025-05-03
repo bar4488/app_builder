@@ -8,7 +8,8 @@ import '../models/connection.dart';
 
 class BlueprintEditorState extends ChangeNotifier {
   final BlueprintState _blueprintState;
-  Offset _canvasOffset = Offset.zero; // For panning
+  Offset _canvasOffset = const Offset(
+      BlueprintState.size / 2, BlueprintState.size / 2); // For panning
   double _scale = 1.0; // For zooming
 
   // For drawing temporary connection line

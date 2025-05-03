@@ -1,3 +1,4 @@
+import 'package:app_builder/utils/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_builder/models/node.dart';
@@ -10,22 +11,18 @@ abstract class NodeSettigns<T extends Node> {
 }
 
 class EnumValueEditor<T> extends StatefulWidget {
-  final List<MapEntry<String, T>> enumValues;
   final NodeVariable<T> variable;
-  final List<Widget?>? prefixes;
   final Node node;
   final FocusNode? focus;
+  final EnumType enumType;
 
-  EnumValueEditor({
+  const EnumValueEditor({
     super.key,
     required this.node,
     required this.variable,
-    required this.enumValues,
+    required this.enumType,
     this.focus,
-    this.prefixes,
-  }) {
-    assert(prefixes == null || prefixes!.length == enumValues.length);
-  }
+  });
 
   @override
   State<EnumValueEditor<T>> createState() => _EnumValueEditorState<T>();
@@ -33,11 +30,20 @@ class EnumValueEditor<T> extends StatefulWidget {
 
 class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
   int? index;
+  late List<MapEntry<String, T>> values;
   @override
   void initState() {
     var value = widget.variable.valueOrNull;
+    values = widget.enumType.enumValues
+        .map((e) => MapEntry(e.key, e.value as T))
+        .toList();
     if (value is T) {
-      index = widget.enumValues.map((e) => e.value).toList().indexOf(value);
+      if (widget.variable.type.isNullable) {
+        values.insert(0, MapEntry("None", null as T));
+      }
+      index = values.indexWhere(
+        (element) => element.value == value,
+      );
       if (index == -1) {
         index = null;
       }
@@ -61,37 +67,39 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
                   decoration: InputDecoration(
                     labelText: widget.variable.name,
                   ),
-                  selectedItemBuilder: (context) => List.generate(
-                      widget.enumValues.length,
-                      (index) => Row(
-                            children: [
-                              if (widget.prefixes != null &&
-                                  widget.prefixes![index] != null) ...[
-                                widget.prefixes![index]!,
-                                const SizedBox(
-                                  width: 4,
-                                )
-                              ],
-                              Text(
-                                widget.enumValues[index].key,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          )).toList(),
-                  items: List.generate(
-                      widget.enumValues.length,
-                      (index) => DropdownMenuItem<int>(
-                            value: index,
-                            child: ListTile(
-                              leading: widget.prefixes != null
-                                  ? widget.prefixes![index]
-                                  : null,
-                              title: Text(
-                                widget.enumValues[index].key,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )).toList(),
+                  selectedItemBuilder: (context) =>
+                      List.generate(values.length, (index) {
+                    var prefix =
+                        widget.enumType.prefixBuilder(values[index].value);
+                    return Row(
+                      children: [
+                        if (prefix != null) ...[
+                          prefix,
+                          const SizedBox(
+                            width: 4,
+                          )
+                        ],
+                        Text(
+                          values[index].key,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    );
+                  }).toList(),
+                  items: List.generate(values.length, (index) {
+                    var prefix =
+                        widget.enumType.prefixBuilder(values[index].value);
+                    return DropdownMenuItem<int>(
+                      value: index,
+                      child: ListTile(
+                        leading: prefix,
+                        title: Text(
+                          values[index].key,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  }).toList(),
                   onChanged: widget.variable.inputPin != null
                       ? null
                       : (newIndex) {
@@ -99,8 +107,8 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
                             return;
                           }
                           if (newIndex != null) {
-                            widget.variable.setValueNode(ConstValueNode(
-                                widget.enumValues[newIndex].value));
+                            widget.variable.setValueNode(
+                                ConstValueNode(values[newIndex].value));
                           } else {
                             widget.variable.setValueNode(null);
                           }

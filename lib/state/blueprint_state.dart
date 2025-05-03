@@ -8,6 +8,7 @@ import 'package:app_builder/models/nodes/viewport.dart';
 import 'package:app_builder/models/pin.dart';
 
 class BlueprintState with ChangeNotifier {
+  static const size = 4000.0;
   late final Node viewportNode;
 
   final List<Node> _nodes = [];
@@ -18,7 +19,7 @@ class BlueprintState with ChangeNotifier {
   BlueprintState() {
     viewportNode = ViewportNode(
       id: 'viewport',
-      position: const Offset(100, 100),
+      position: const Offset(size / 2 + 100, size / 2 + 100),
       blueprint: this,
     );
     addNode(viewportNode);

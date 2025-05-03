@@ -1,3 +1,4 @@
+import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/connection.dart';
 import 'package:app_builder/models/variable.dart';
@@ -222,5 +223,51 @@ class InputValuePin<T> extends Pin {
     return super.canConnectTo(other) &&
         other is OutputValuePin &&
         other.valueType.isSubtypeOf(valueType);
+  }
+}
+
+class InputExecutionPin extends Pin {
+  InputExecutionPin({
+    required String nodeId,
+    required String label,
+    void Function(PreviewState)? onFire,
+  })  : _onFire = onFire,
+        super(
+          nodeId: nodeId,
+          label: label,
+          direction: PinDirection.input,
+          multi: true,
+          type: PinType.exec,
+        );
+
+  void Function(PreviewState state)? _onFire;
+  void onFire(PreviewState state) {
+    var node = state.blueprint.findNodeById(nodeId)!;
+    for (var e in node.getVariables()) {
+      if (e.getValueNode() == null) {
+        state.setNodeError(node.id, "Variable ${e.name} is not initialized");
+        return;
+      }
+    }
+    _onFire?.call(state);
+  }
+}
+
+class OutputExecutionPin extends Pin {
+  OutputExecutionPin({
+    required String nodeId,
+    required String label,
+  }) : super(
+          nodeId: nodeId,
+          label: label,
+          direction: PinDirection.output,
+          multi: false,
+          type: PinType.exec,
+        );
+
+  void fire(PreviewState state) {
+    for (var conn in connections) {
+      (conn.endPin as InputExecutionPin).onFire(state);
+    }
   }
 }
