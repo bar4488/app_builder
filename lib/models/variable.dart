@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/pin.dart';
 
 class NodeVariable<T> with ChangeNotifier {
@@ -7,15 +6,22 @@ class NodeVariable<T> with ChangeNotifier {
   ValueNode<T>? _valueNode;
   T? defaultValue;
   InputValuePin<T>? inputPin;
-  OutputValuePin<T>? outputPin;
+  void Function(ValueNode<T>? value)? _onChanged;
 
-  bool get canBindInputPin =>
-      outputPin == null; // can bind input pin if no output pin is bound
+  final bool _canBindInput;
+  bool get canBindInput => _canBindInput;
+
+  T? get constValueOrNull {
+    if (_valueNode?.isConst() == true) {
+      return _valueNode!.value;
+    }
+    return defaultValue;
+  }
 
   T? get valueOrNull {
     if (_valueNode == null) {
-      if (defaultValue != null) {
-        return defaultValue!;
+      if (defaultValue is T) {
+        return defaultValue as T;
       }
       return null;
     }
@@ -32,15 +38,13 @@ class NodeVariable<T> with ChangeNotifier {
       throw Exception("Cannot set a value on a bounded variable '$name'!");
     }
     _valueNode = value;
-    if (outputPin != null) {
-      outputPin!.update(getValueNode());
-    }
+    _onChanged?.call(getValueNode());
     notifyListeners();
   }
 
   ValueNode<T>? getValueNode() {
     if (_valueNode == null) {
-      if (defaultValue != null) {
+      if (defaultValue is T) {
         return ConstValueNode(defaultValue as T);
       }
       return null;
@@ -65,22 +69,20 @@ class NodeVariable<T> with ChangeNotifier {
     notifyListeners();
   }
 
-  void bindOutputPin(OutputValuePin<T>? pin) {
-    if (outputPin != null) {
-      outputPin!.update(null);
-    }
-    outputPin = pin;
-    if (outputPin != null) {
-      outputPin!.update(getValueNode());
-    }
+  void setOnChanged(void Function(ValueNode<T>? value)? newOnChanged) {
+    _onChanged?.call(null);
+    _onChanged = newOnChanged;
+    _onChanged?.call(getValueNode());
     notifyListeners();
   }
 
   NodeVariable({
     required this.name,
+    bool canBindInput = true,
     ValueNode<T>? value,
     this.defaultValue,
-  }) : _valueNode = value;
+  })  : _valueNode = value,
+        _canBindInput = canBindInput;
 }
 
 abstract class ValueNode<T> {
@@ -104,6 +106,8 @@ abstract class ValueNode<T> {
     }
     throw Exception("ValueNode is not ChangeNotifier");
   }
+
+  ValueNode<R> cast<R>();
 }
 
 class ChangeValueNode<T> extends ValueNode<T> with ChangeNotifier {
@@ -124,6 +128,31 @@ class ChangeValueNode<T> extends ValueNode<T> with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  @override
+  ValueNode<R> cast<R>() {
+    ChangeValueNode<R> result = CastChangeValueNode.from(this);
+    return result;
+  }
+}
+
+class CastChangeValueNode<T> extends ChangeValueNode<T> {
+  ChangeValueNode _other;
+  void listener() {
+    value = _other._value as T;
+  }
+
+  CastChangeValueNode.from(ChangeValueNode other)
+      : _other = other,
+        super(other.value) {
+    _other.addListener(listener);
+  }
+
+  @override
+  void dispose() {
+    _other.removeListener(listener);
+    super.dispose();
+  }
 }
 
 class ConstValueNode<T> extends ValueNode<T> {
@@ -131,4 +160,9 @@ class ConstValueNode<T> extends ValueNode<T> {
   @override
   T get value => _value;
   const ConstValueNode(this._value);
+
+  @override
+  ValueNode<R> cast<R>() {
+    return ConstValueNode(_value as R);
+  }
 }

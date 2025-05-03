@@ -318,7 +318,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                         onAddNode: (type) => addNode(
                           startPin: editorState.contextMenuStartPin,
                           nodeBuilder: (id, position) =>
-                              type.nodeBuilder(id, position),
+                              type.nodeBuilder(id, position, blueprintState),
                         ),
                       ),
                     ),
@@ -338,7 +338,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
     var editorState = context.read<BlueprintEditorState>();
     if (editorState.contextMenuPosition == null) return;
 
-    final newNodeId = 'node${editorState.nodes.length + 1}';
+    final newNodeId = 'node${editorState.incrementalId++}';
     final worldPos = editorState.screenToWorld(
       editorState.contextMenuPosition!,
     );

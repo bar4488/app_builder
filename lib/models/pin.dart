@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/connection.dart';
 import 'package:app_builder/models/variable.dart';
+import 'package:runtime_type/runtime_type.dart';
 
 // Enum to define pin direction
 enum PinDirection { input, output }
@@ -63,6 +64,9 @@ class Pin {
     }
     _connections.add(newConn);
   }
+
+  bool canConnectTo(Pin other) =>
+      direction != other.direction && this.type == other.type;
 }
 
 class InputRenderPin extends Pin {
@@ -76,6 +80,11 @@ class InputRenderPin extends Pin {
             direction: direction,
             type: PinType.render,
             multi: true);
+
+  @override
+  bool canConnectTo(Pin other) {
+    return super.canConnectTo(other) && other is OutputRenderPin;
+  }
 }
 
 class OutputRenderPin extends Pin {
@@ -97,13 +106,16 @@ class OutputRenderPin extends Pin {
     // Notify the value node of the new value
     onRenderTargetChanged(connections.firstOrNull?.endPin.nodeId);
   }
+
+  @override
+  bool canConnectTo(Pin other) {
+    return super.canConnectTo(other) && other is InputRenderPin;
+  }
 }
 
 class OutputValuePin<T> extends Pin {
-  // void Function(InputValuePin input)? onValueChanged;
-
   ValueNode<T>? _value;
-  Type get valueType => T;
+  RuntimeType get valueType => RuntimeType<T>();
 
   OutputValuePin({
     required String nodeId,
@@ -130,18 +142,47 @@ class OutputValuePin<T> extends Pin {
     return _value;
   }
 
-  // @override
-  // void onConnectionChanged() {
-  //   // Notify the value node of the new value
-  //   if (onValueChanged != null) {
-  //     onValueChanged!(connections.firstOrNull?.endPin as InputValuePin);
-  //   }
-  // }
+  @override
+  bool canConnectTo(Pin other) {
+    return super.canConnectTo(other) &&
+        other is InputValuePin &&
+        valueType.isSubtypeOf(other.valueType);
+  }
+}
+
+class DynamicOutputValuePin extends OutputValuePin {
+  RuntimeType _valueType = RuntimeType<void>();
+
+  @override
+  RuntimeType get valueType => _valueType;
+
+  DynamicOutputValuePin({
+    required String nodeId,
+    required String label,
+  }) : super(
+          nodeId: nodeId,
+          label: label,
+        );
+
+  void setValueType(RuntimeType type) {
+    if (_valueType == type) return;
+    _valueType = type;
+    update(null);
+  }
+
+  @override
+  void update(ValueNode? value) {
+    _value = value;
+    // Notify the input nodes
+    for (var conn in connections) {
+      (conn.endPin as InputValuePin).onDynamicValueChanged(value);
+    }
+  }
 }
 
 class InputValuePin<T> extends Pin {
   void Function(ValueNode<T>? newVal)? onValueChanged;
-  Type get valueType => T;
+  RuntimeType get valueType => RuntimeType<T>();
 
   InputValuePin({
     required String nodeId,
@@ -158,10 +199,13 @@ class InputValuePin<T> extends Pin {
   @override
   void onConnectionChanged() {
     // Notify the value node of the new value
-    if (onValueChanged != null) {
-      onValueChanged!(
-          (connections.firstOrNull?.startPin as OutputValuePin<T>?)?.value);
-    }
+    onValueChanged?.call((connections.firstOrNull?.startPin as OutputValuePin?)
+        ?.value
+        ?.cast<T>());
+  }
+
+  void onDynamicValueChanged(ValueNode? newVal) {
+    onValueChanged?.call(newVal?.cast<T>());
   }
 
   Stream<String> getValueStream() {
@@ -171,5 +215,12 @@ class InputValuePin<T> extends Pin {
       const Duration(seconds: 1),
       (count) => "Value from $label: $count",
     );
+  }
+
+  @override
+  bool canConnectTo(Pin other) {
+    return super.canConnectTo(other) &&
+        other is OutputValuePin &&
+        other.valueType.isSubtypeOf(valueType);
   }
 }

@@ -8,10 +8,7 @@ import 'package:app_builder/models/nodes/viewport.dart';
 import 'package:app_builder/models/pin.dart';
 
 class BlueprintState with ChangeNotifier {
-  final Node viewportNode = ViewportNode(
-    id: 'viewport',
-    position: const Offset(100, 100),
-  );
+  late final Node viewportNode;
 
   final List<Node> _nodes = [];
   Iterable<Node> get nodes => _nodes;
@@ -19,6 +16,11 @@ class BlueprintState with ChangeNotifier {
   final LinkedList<Connection> connections = LinkedList<Connection>();
 
   BlueprintState() {
+    viewportNode = ViewportNode(
+      id: 'viewport',
+      position: const Offset(100, 100),
+      blueprint: this,
+    );
     addNode(viewportNode);
   }
 

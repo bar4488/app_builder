@@ -10,10 +10,9 @@ abstract class NodeSettigns<T extends Node> {
 }
 
 class EnumValueEditor<T> extends StatefulWidget {
-  final String label;
   final List<MapEntry<String, T>> enumValues;
   final NodeVariable<T> variable;
-  final List<Widget>? prefixes;
+  final List<Widget?>? prefixes;
   final Node node;
   final FocusNode? focus;
 
@@ -24,7 +23,6 @@ class EnumValueEditor<T> extends StatefulWidget {
     required this.enumValues,
     this.focus,
     this.prefixes,
-    this.label = "Enum Value",
   }) {
     assert(prefixes == null || prefixes!.length == enumValues.length);
   }
@@ -61,14 +59,15 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
                   value: index,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: widget.label,
+                    labelText: widget.variable.name,
                   ),
                   selectedItemBuilder: (context) => List.generate(
                       widget.enumValues.length,
                       (index) => Row(
                             children: [
-                              if (widget.prefixes != null) ...[
-                                widget.prefixes![index],
+                              if (widget.prefixes != null &&
+                                  widget.prefixes![index] != null) ...[
+                                widget.prefixes![index]!,
                                 const SizedBox(
                                   width: 4,
                                 )
@@ -96,6 +95,9 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
                   onChanged: widget.variable.inputPin != null
                       ? null
                       : (newIndex) {
+                          if (newIndex == index) {
+                            return;
+                          }
                           if (newIndex != null) {
                             widget.variable.setValueNode(ConstValueNode(
                                 widget.enumValues[newIndex].value));
@@ -109,7 +111,7 @@ class _EnumValueEditorState<T> extends State<EnumValueEditor<T>> {
                         },
                 ),
               ),
-              if (widget.variable.canBindInputPin)
+              if (widget.variable.canBindInput)
                 BindButton<T>(node: widget.node, variable: widget.variable)
             ],
           );
@@ -143,7 +145,7 @@ class StringValueEditor extends StatelessWidget {
                   decoration: InputDecoration(labelText: variable.name),
                 ),
               ),
-              if (variable.canBindInputPin)
+              if (variable.canBindInput)
                 BindButton<String>(node: node, variable: variable)
             ],
           );
@@ -168,15 +170,7 @@ class BindButton<T> extends StatelessWidget {
           variable.bindInputPin(null);
           return;
         }
-        var inputPin = InputValuePin<T>(
-          nodeId: node.id,
-          label: variable.name,
-          onValueChanged: (value) {
-            variable.setValueNode(value);
-          },
-        );
-        node.addInputPin(inputPin);
-        variable.bindInputPin(inputPin);
+        node.bindInputVariable(variable);
       },
     );
   }

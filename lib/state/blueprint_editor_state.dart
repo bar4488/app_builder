@@ -17,6 +17,7 @@ class BlueprintEditorState extends ChangeNotifier {
   Pin? _dragStartPin;
   PinDirection? dragStartPinDirection;
 
+  int incrementalId = 0;
   Iterable<Node> get nodes => _blueprintState.nodes;
   Iterable<Connection> get connections => _blueprintState.connections;
   Iterable<Connection> get reversedConnections =>
@@ -44,9 +45,6 @@ class BlueprintEditorState extends ChangeNotifier {
 
   Connection? _hoveredConnection;
   Connection? get hoveredConnection => _hoveredConnection;
-
-  // errors map
-  final Map<String, String?> _nodeErrors = {};
 
   Node? selectedNode;
 
@@ -168,20 +166,6 @@ class BlueprintEditorState extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  String? getNodeError(String nodeId) {
-    return _nodeErrors[nodeId];
-  }
-
-  void setNodeError(String nodeId, String? error) {
-    _nodeErrors[nodeId] = error;
-    notifyListeners();
-  }
-
-  void clearNodeErrors() {
-    _nodeErrors.clear();
-    notifyListeners();
-  }
-
   // --- Canvas Management ---
   void panCanvas(Offset delta) {
     _canvasOffset -= delta / _scale;
@@ -238,10 +222,7 @@ class BlueprintEditorState extends ChangeNotifier {
   }
 
   void _tryAddConnection(Pin startPin, Pin endPin) {
-    if (startPin.direction != endPin.direction &&
-        startPin.type == endPin.type) {
-      // Add type check
-      // Determine correct start/end based on direction
+    if (startPin.canConnectTo(endPin)) {
       final outputPin =
           (startPin.direction == PinDirection.output) ? startPin! : endPin;
       final inputPin =
@@ -300,12 +281,22 @@ class BlueprintEditorState extends ChangeNotifier {
     if (selectionRectStart != null) {
       final currentPos = screenToWorld(localPosition);
       selectionRect = Rect.fromPoints(selectionRectStart!, currentPos);
+      int count = 0;
+      Node? selected;
       for (var node in nodes) {
         if (node.rect.overlaps(selectionRect!)) {
           node.isSelected = true;
+          selected = node;
+          count++;
         } else {
           node.isSelected = false;
         }
+      }
+
+      if (count == 1) {
+        selectedNode = selected;
+      } else {
+        selectedNode = null;
       }
       notifyListeners();
     }

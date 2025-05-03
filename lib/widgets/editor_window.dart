@@ -1,3 +1,4 @@
+import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_builder/state/blueprint_state.dart';
@@ -17,6 +18,11 @@ class EditorWindow extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(
           create: (context) => BlueprintState(),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => PreviewState(
+            context.read<BlueprintState>(),
+          ),
         ),
         ChangeNotifierProvider(
           create: (context) =>

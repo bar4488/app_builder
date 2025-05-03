@@ -1,3 +1,4 @@
+import 'package:app_builder/utils/let.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/node_settings.dart';
@@ -12,7 +13,8 @@ class StringNode extends Node {
   NodeVariable<String> text = NodeVariable<String>(name: "Value");
   late OutputValuePin<String> valuePin;
 
-  StringNode({required super.id, required super.position})
+  StringNode(
+      {required super.id, required super.position, required super.blueprint})
       : _settigns = StringNodeSettigns(),
         super(
           title: "String",
@@ -23,8 +25,13 @@ class StringNode extends Node {
       label: "value",
     );
     addOutputPin(valuePin);
-    text.bindOutputPin(valuePin);
+    text.setOnChanged((value) => valuePin.update(value));
   }
+
+  @override
+  String? get description => text.valueOrNull?.let(
+        (it) => "String - '$it'",
+      );
 }
 
 class StringNodeSettigns extends NodeSettigns<StringNode> {

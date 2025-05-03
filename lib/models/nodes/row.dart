@@ -1,3 +1,4 @@
+import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/render_data.dart';
@@ -35,7 +36,8 @@ class RowNode extends MultiOutputNode {
   @override
   NodeSettigns get settings => _settigns;
 
-  RowNode({required super.id, required super.position})
+  RowNode(
+      {required super.id, required super.position, required super.blueprint})
       : _renderData = RowRenderData(),
         super(
           title: "Row",
@@ -64,12 +66,12 @@ class RowRenderData extends RenderData<RowNode> {
 
   @override
   Widget Function() getBuilder(
-    BlueprintState state,
+    PreviewState state,
     RowNode node,
   ) {
     List<Widget> children = node.children.nonNulls
         .map(
-          (e) => state.findNodeById(e)!,
+          (e) => state.blueprint.findNodeById(e)!,
         )
         .map((child) => child.renderData!.build(state, child))
         .toList()

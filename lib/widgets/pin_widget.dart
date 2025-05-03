@@ -47,8 +47,7 @@ class PinWidget extends StatelessWidget {
         editorState.dragStartPin != pin;
     bool isInvalidTarget = false;
     if (isPotentialTarget) {
-      isInvalidTarget = editorState.dragStartPin!.direction == pin.direction ||
-          editorState.dragStartPin!.type != pin.type;
+      isInvalidTarget = !pin.canConnectTo(editorState.dragStartPin!);
     }
 
     return GestureDetector(

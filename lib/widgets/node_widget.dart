@@ -1,3 +1,4 @@
+import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -61,8 +62,9 @@ class _NodeWidgetState extends State<NodeWidget> {
   Widget build(BuildContext context) {
     var padding = widget.node.padding;
     var editorState = context.read<BlueprintEditorState>();
-
-    var nodeError = editorState.getNodeError(widget.node.id);
+    var nodeError = context.select<PreviewState, String?>(
+      (value) => value.getNodeError(widget.node.id),
+    );
 
     return ListenableBuilder(
         listenable: widget.node,
@@ -159,7 +161,7 @@ class _NodeWidgetState extends State<NodeWidget> {
                                 ),
                               ),
                               child: Text(
-                                widget.node.title,
+                                widget.node.description ?? widget.node.title,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,

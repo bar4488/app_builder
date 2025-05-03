@@ -1,10 +1,11 @@
+import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/render_data.dart';
 import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/variable.dart';
 import 'package:app_builder/state/blueprint_state.dart';
-import 'package:app_builder/utils/colors.dart';
+import 'package:app_builder/utils/enums.dart';
 
 class ContainerNode extends Node {
   final RenderData _renderData = ContainerRenderData();
@@ -18,20 +19,28 @@ class ContainerNode extends Node {
 
   RenderTarget child = RenderTarget(
     name: "Child",
+    required: false,
   );
 
   NodeVariable<Color?> color = NodeVariable<Color?>(
     name: "Color",
+    defaultValue: null,
   );
 
-  ContainerNode({required super.id, required super.position})
+  NodeVariable<Alignment> alignment = NodeVariable<Alignment>(
+    name: "Alignment",
+    defaultValue: Alignment.center,
+  );
+
+  ContainerNode(
+      {required super.id, required super.position, required super.blueprint})
       : super(
           title: "Container",
           hasRenderInput: true,
         );
 
   @override
-  Iterable<NodeVariable> getVariables() => [];
+  Iterable<NodeVariable> getVariables() => [alignment, color];
 
   @override
   Iterable<RenderTarget> getRenderTargets() => [
@@ -44,15 +53,16 @@ class ContainerRenderData extends RenderData<ContainerNode> {
 
   @override
   Widget Function() getBuilder(
-    BlueprintState state,
+    PreviewState state,
     ContainerNode node,
   ) {
-    Widget child = node.child.build(state);
+    Widget? child = node.child.tryBuild(state);
 
     Widget builder() {
       return Container(
         color: node.color.valueOrNull,
         child: child,
+        alignment: node.alignment.value,
       );
     }
 
@@ -68,15 +78,23 @@ class ContainerNodeSettigns extends NodeSettigns<ContainerNode> {
         EnumValueEditor<Color?>(
           node: node,
           variable: node.color,
-          enumValues: colors,
-          prefixes: colors
-              .map(
-                (e) => CircleAvatar(
-                  backgroundColor: e.value,
-                  radius: 8,
-                ),
-              )
-              .toList(),
+          enumValues: Enums.colors.nullableEnumValues,
+          prefixes: [
+            null,
+            ...Enums.colors.enumValues
+                .map(
+                  (e) => CircleAvatar(
+                    backgroundColor: e.value,
+                    radius: 8,
+                  ),
+                )
+                .toList()
+          ],
+        ),
+        EnumValueEditor<Alignment>(
+          node: node,
+          variable: node.alignment,
+          enumValues: Enums.alignment.enumValues,
         ),
       ],
     );

@@ -1,9 +1,11 @@
 import 'dart:math';
 
+import 'package:app_builder/state/blueprint_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/render_data.dart';
 import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/variable.dart';
+import 'package:runtime_type/runtime_type.dart';
 import 'pin.dart';
 
 enum NodeKind {
@@ -15,6 +17,7 @@ enum NodeKind {
 class Node with ChangeNotifier {
   final String id;
   String title;
+  String? get description => null;
 
   Offset position; // Top-left position on the canvas
   Size size; // Size of the node widget
@@ -24,6 +27,9 @@ class Node with ChangeNotifier {
   final List<Pin> outputPins;
   bool isSelected;
   NodeKind type;
+
+  BlueprintState _blueprint;
+  BlueprintState get blueprint => _blueprint;
 
   static const List<Color?> highlightColors = [
     null,
@@ -35,6 +41,8 @@ class Node with ChangeNotifier {
     Colors.purple,
   ];
   int highlightColorIndex = 0;
+
+  bool deletable = true;
 
   Color? get highlightColor =>
       highlightColors[highlightColorIndex % highlightColors.length];
@@ -49,6 +57,7 @@ class Node with ChangeNotifier {
     required this.id,
     required this.title,
     required this.position,
+    required BlueprintState blueprint,
     bool hasRenderInput = false,
     this.type = NodeKind.static,
     this.size = const Size(180, 100), // Default size
@@ -56,7 +65,8 @@ class Node with ChangeNotifier {
     List<Pin>? outputPins,
     this.isSelected = false,
   })  : inputPins = inputPins ?? [],
-        outputPins = outputPins ?? [] {
+        outputPins = outputPins ?? [],
+        _blueprint = blueprint {
     if (hasRenderInput) {
       // add render pin to input at start of list
       this.inputPins.insert(
@@ -185,14 +195,14 @@ class Node with ChangeNotifier {
     return [];
   }
 
-  InputValuePin? getInputValuePin(Type type) {
+  InputValuePin? getInputValuePin(RuntimeType type) {
     return inputPins
         .whereType<InputValuePin>()
         .where((e) => e.valueType == type)
         .single;
   }
 
-  OutputValuePin? getOutputValuePin(Type type) {
+  OutputValuePin? getOutputValuePin(RuntimeType type) {
     return outputPins
         .whereType<OutputValuePin>()
         .where((e) => e.valueType == type)
@@ -216,6 +226,19 @@ class Node with ChangeNotifier {
       _ => throw TypeError(),
     };
   }
+
+  InputValuePin<T> bindInputVariable<T>(NodeVariable<T> variable) {
+    var inputPin = InputValuePin<T>(
+      nodeId: id,
+      label: variable.name,
+      onValueChanged: (value) {
+        variable.setValueNode(value);
+      },
+    );
+    addInputPin(inputPin);
+    variable.bindInputPin(inputPin);
+    return inputPin;
+  }
 }
 
 abstract class MultiOutputNode extends Node {
@@ -223,6 +246,7 @@ abstract class MultiOutputNode extends Node {
     required super.id,
     required super.title,
     required super.position,
+    required super.blueprint,
     super.hasRenderInput,
     super.size,
     super.inputPins,

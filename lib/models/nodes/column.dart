@@ -1,3 +1,4 @@
+import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/render_data.dart';
@@ -29,7 +30,8 @@ class ColumnNode extends MultiOutputNode {
     defaultValue: CrossAxisAlignment.start,
   );
 
-  ColumnNode({required super.id, required super.position})
+  ColumnNode(
+      {required super.id, required super.position, required super.blueprint})
       : super(
           title: "Column",
           hasRenderInput: true,
@@ -63,12 +65,12 @@ class ColumnRenderData extends RenderData<ColumnNode> {
 
   @override
   Widget Function() getBuilder(
-    BlueprintState state,
+    PreviewState state,
     ColumnNode node,
   ) {
     List<Widget> children = node.children.nonNulls
         .map(
-          (e) => state.findNodeById(e)!,
+          (e) => state.blueprint.findNodeById(e)!,
         )
         .map((child) => child.renderData!.build(state, child))
         .toList()

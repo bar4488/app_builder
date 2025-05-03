@@ -1,3 +1,4 @@
+import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app_builder/models/exceptions.dart';
@@ -22,14 +23,14 @@ class _PreviewPanelState extends State<PreviewPanel> {
   }
 
   void onChangeBlueprintState() {
-    var editorState = context.read<BlueprintEditorState>();
-    var state = context.read<BlueprintState>();
+    var state = context.read<PreviewState>();
     setState(() {
-      editorState.clearNodeErrors();
+      state.clearNodeErrors();
       try {
-        child = state.viewportNode.renderData!.build(state, state.viewportNode);
+        child = state.blueprint.viewportNode.renderData!
+            .build(state, state.blueprint.viewportNode);
       } on NodeValueException catch (e) {
-        editorState.setNodeError(e.nodeId, e.errorMessage);
+        state.setNodeError(e.nodeId, e.errorMessage);
         child = Center(
           child: Text(
             "No preview available: ${e.toString()}",
@@ -37,7 +38,7 @@ class _PreviewPanelState extends State<PreviewPanel> {
           ),
         );
       } on NodeRenderException catch (e) {
-        editorState.setNodeError(e.nodeId, e.errorMessage);
+        state.setNodeError(e.nodeId, e.errorMessage);
         child = Center(
           child: Text(
             "No preview available: ${e.toString()}",
