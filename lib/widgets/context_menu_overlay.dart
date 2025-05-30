@@ -1,4 +1,6 @@
+import 'package:app_builder/models/nodes/variables.dart';
 import 'package:app_builder/models/pin.dart';
+import 'package:app_builder/state/blueprint_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/nodes.dart';
 import 'package:app_builder/utils/string_extensions.dart';
@@ -7,12 +9,14 @@ class ContextMenuOverlay extends StatefulWidget {
   final VoidCallback onDismiss;
   final Pin? startPin;
   final void Function(NodeType nodeType) onAddNode;
+  final BlueprintState state;
 
   const ContextMenuOverlay({
     super.key,
     this.startPin,
     required this.onDismiss,
     required this.onAddNode,
+    required this.state,
   });
 
   @override
@@ -45,6 +49,30 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
         },
       ));
     }
+    _menuItems[NodeCategory.variables] = widget.state.variables
+        .map(
+          (v) => MenuItemData(
+            title: "Get ${v.name}",
+            onTap: () {
+              widget.onAddNode(
+                NodeType(
+                  name: "GetVariable",
+                  isRenderInput: false,
+                  isRenderOutput: false,
+                  category: NodeCategory.variables,
+                  nodeBuilder: (id, position, blueprint) => GetVariableNode(
+                    id: id,
+                    position: position,
+                    blueprint: blueprint,
+                    variable: v,
+                  ),
+                ),
+              );
+              widget.onDismiss();
+            },
+          ),
+        )
+        .toList();
     super.initState();
   }
 

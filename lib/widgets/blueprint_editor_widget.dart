@@ -320,6 +320,7 @@ class _BlueprintEditorWidgetState extends State<BlueprintEditorWidget> {
                           nodeBuilder: (id, position) =>
                               type.nodeBuilder(id, position, blueprintState),
                         ),
+                        state: blueprintState,
                       ),
                     ),
                   ),

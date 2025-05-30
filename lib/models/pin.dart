@@ -226,6 +226,28 @@ class InputValuePin<T> extends Pin {
   }
 }
 
+class DynamicInputValuePin extends InputValuePin {
+  RuntimeType _valueType = RuntimeType<void>();
+
+  @override
+  RuntimeType get valueType => _valueType;
+
+  DynamicInputValuePin({
+    required String nodeId,
+    required String label,
+    super.onValueChanged,
+  }) : super(
+          nodeId: nodeId,
+          label: label,
+        );
+
+  void setValueType(RuntimeType type) {
+    if (_valueType == type) return;
+    _valueType = type;
+    onValueChanged?.call(null);
+  }
+}
+
 class InputExecutionPin extends Pin {
   InputExecutionPin({
     required String nodeId,

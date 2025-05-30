@@ -3,11 +3,19 @@ import 'package:flutter/material.dart';
 class EditorWindowState with ChangeNotifier {
   bool _leftDrawerOpen = true;
   bool _rightDrawerOpen = false;
+  int _selectedTab = 0;
 
   bool get leftDrawerOpen => _leftDrawerOpen;
   bool get rightDrawerOpen => _rightDrawerOpen;
+  int get selectedTab => _selectedTab;
 
   GlobalKey settingsPanelKey = GlobalKey();
+
+  void selectTab(int index) {
+    if (_selectedTab == index) return;
+    _selectedTab = index;
+    notifyListeners();
+  }
 
   // open and close drawers
   void toggleLeftDrawer() {

@@ -3,6 +3,7 @@ import 'package:app_builder/models/nodes/debug_print.dart';
 import 'package:app_builder/models/nodes/enum_node.dart';
 import 'package:app_builder/models/nodes/gesture_detector.dart';
 import 'package:app_builder/models/nodes/scaffold.dart';
+import 'package:app_builder/models/nodes/variables.dart';
 import 'package:app_builder/models/pin.dart';
 import 'package:app_builder/state/blueprint_state.dart';
 import 'package:app_builder/utils/enums.dart';
@@ -23,6 +24,7 @@ enum NodeCategory {
   internal,
   debug,
   events,
+  variables,
 }
 
 List<NodeType> nodeTypes = [

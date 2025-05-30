@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:app_builder/widgets/blueprint_variables_panel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:app_builder/models/connection.dart';
@@ -15,6 +16,8 @@ class BlueprintState with ChangeNotifier {
   Iterable<Node> get nodes => _nodes;
   final Map<String, Node> _nodeMap = {};
   final LinkedList<Connection> connections = LinkedList<Connection>();
+
+  final List<BlueprintVariable> variables = [];
 
   BlueprintState() {
     viewportNode = ViewportNode(
@@ -172,6 +175,26 @@ class BlueprintState with ChangeNotifier {
       conn.startPin.onConnectionChanged();
     });
     node.removeInputPin(inputValuePin);
+    notifyListeners();
+  }
+
+  void addVariable(BlueprintVariable blueprintVariable) {
+    variables.add(blueprintVariable);
+    notifyListeners();
+  }
+
+  void removeVariableAt(int index) {
+    variables.removeAt(index);
+    notifyListeners();
+  }
+
+  void setVariableName(BlueprintVariable variable, String name) {
+    variable.name = name;
+    notifyListeners();
+  }
+
+  void setVariableType(BlueprintVariable variable, VariableType newType) {
+    variable.type = newType;
     notifyListeners();
   }
 }

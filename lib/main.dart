@@ -12,6 +12,20 @@ class BlueprintEditorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool debug = true;
+    var height = 800.0;
+    Widget widget = const EditorWindow();
+    if (debug) {
+      widget = FittedBox(
+        child: SizedBox(
+          height: height,
+          width: MediaQuery.of(context).size.width /
+              MediaQuery.of(context).size.height *
+              height,
+          child: widget,
+        ),
+      );
+    }
     return MaterialApp(
       title: 'Flutter Blueprint Editor Demo',
       theme: ThemeData(
@@ -24,7 +38,7 @@ class BlueprintEditorApp extends StatelessWidget {
             create: (context) => EditorWindowState(),
           ),
         ],
-        child: const EditorWindow(),
+        child: widget,
       ),
       debugShowCheckedModeBanner: false,
     );
