@@ -265,10 +265,6 @@ class BlueprintEditorState extends ChangeNotifier {
 
   Offset worldToScreen(Offset world) => (world - canvasOffset) * scale;
 
-  Pin? findPinByKey(PinKey key) {
-    return _blueprintState.findPinByKey(key);
-  }
-
   Node? findNodeById(String id) {
     return _blueprintState.findNodeById(id);
   }

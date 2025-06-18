@@ -5,6 +5,8 @@ import 'package:app_builder/models/variable.dart';
 import 'package:flutter/material.dart';
 
 class DebugPrintNode extends Node {
+  @override
+  String get typeName => "DebugPrint";
   NodeVariable<String> text = NodeVariable(
     name: "Text",
   );
@@ -15,9 +17,7 @@ class DebugPrintNode extends Node {
   late InputExecutionPin onTap;
   DebugPrintNode(
       {required super.id, required super.position, required super.blueprint})
-      : super(
-          title: "DebugPrint",
-        ) {
+      : super() {
     addInputPin(
       InputExecutionPin(
         nodeId: id,

@@ -161,7 +161,7 @@ class _NodeWidgetState extends State<NodeWidget> {
                                 ),
                               ),
                               child: Text(
-                                widget.node.description ?? widget.node.title,
+                                widget.node.description ?? widget.node.typeName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,

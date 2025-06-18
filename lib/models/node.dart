@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:app_builder/models/nodes.dart';
 import 'package:app_builder/state/blueprint_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/render_data.dart';
@@ -13,10 +14,10 @@ enum NodeKind {
   multiOutput,
 }
 
-// Represents a node in the blueprint editor
-class Node with ChangeNotifier {
+abstract class Node with ChangeNotifier {
   final String id;
-  String title;
+
+  String get typeName;
   String? get description => null;
 
   Offset position; // Top-left position on the canvas
@@ -26,9 +27,9 @@ class Node with ChangeNotifier {
   final List<Pin> inputPins;
   final List<Pin> outputPins;
   bool isSelected;
-  NodeKind type;
+  NodeKind get kind => NodeKind.static;
 
-  BlueprintState _blueprint;
+  final BlueprintState _blueprint;
   BlueprintState get blueprint => _blueprint;
 
   static const List<Color?> highlightColors = [
@@ -55,11 +56,9 @@ class Node with ChangeNotifier {
 
   Node({
     required this.id,
-    required this.title,
     required this.position,
     required BlueprintState blueprint,
     bool hasRenderInput = false,
-    this.type = NodeKind.static,
     this.size = const Size(180, 100), // Default size
     List<Pin>? inputPins,
     List<Pin>? outputPins,
@@ -119,7 +118,7 @@ class Node with ChangeNotifier {
         size.width,
         initialOffset +
             (max(inputPins.length, outputPins.length)) * pinSpacing +
-            (type == NodeKind.static ? 0 : 20));
+            (kind == NodeKind.static ? 0 : 20));
   }
 
   void removeInputPin(Pin pin) {
@@ -144,18 +143,6 @@ class Node with ChangeNotifier {
       Rect.fromLTWH(position.dx, position.dy, size.width, size.height);
 
   double get padding => 8.0;
-
-  T matchType<T>({
-    required T Function(Node) static,
-    required T Function(MultiOutputNode) multiOutput,
-  }) {
-    switch (type) {
-      case NodeKind.static:
-        return static(this);
-      case NodeKind.multiOutput:
-        return multiOutput(this as MultiOutputNode);
-    }
-  }
 
   Stream<String> getValueStream({required String inputPinLabel}) {
     var pin = inputPins.firstWhere(
@@ -239,12 +226,37 @@ class Node with ChangeNotifier {
     variable.bindInputPin(inputPin);
     return inputPin;
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'type': typeName,
+      'position': [position.dx, position.dy],
+      'size': [size.width, size.height],
+      'inputPins': inputPins.map((pin) => pin.toJson()).toList(),
+      'outputPins': outputPins.map((pin) => pin.toJson()).toList(),
+    };
+  }
+
+  static Node fromJson(
+      Map<String, dynamic> nodeJson, BlueprintState blueprintState) {
+    var type = nodeTypes.firstWhere(
+      (element) => element.name == nodeJson['type'],
+    );
+    return type.nodeBuilder(
+      nodeJson["id"],
+      Offset(nodeJson["position"][0], nodeJson["position"][1]),
+      blueprintState,
+    );
+  }
 }
 
 abstract class MultiOutputNode extends Node {
+  @override
+  NodeKind get kind => NodeKind.multiOutput;
+
   MultiOutputNode({
     required super.id,
-    required super.title,
     required super.position,
     required super.blueprint,
     super.hasRenderInput,
@@ -252,9 +264,7 @@ abstract class MultiOutputNode extends Node {
     super.inputPins,
     super.outputPins,
     super.isSelected,
-  }) : super(
-          type: NodeKind.multiOutput,
-        );
+  });
 
   OutputRenderPin addOutputRenderPin();
 

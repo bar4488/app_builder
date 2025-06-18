@@ -50,27 +50,49 @@ class _ContextMenuOverlayState extends State<ContextMenuOverlay> {
       ));
     }
     _menuItems[NodeCategory.variables] = widget.state.variables
-        .map(
-          (v) => MenuItemData(
-            title: "Get ${v.name}",
-            onTap: () {
-              widget.onAddNode(
-                NodeType(
-                  name: "GetVariable",
-                  isRenderInput: false,
-                  isRenderOutput: false,
-                  category: NodeCategory.variables,
-                  nodeBuilder: (id, position, blueprint) => GetVariableNode(
-                    id: id,
-                    position: position,
-                    blueprint: blueprint,
-                    variable: v,
+        .expand(
+          (v) => [
+            MenuItemData(
+              title: "Get ${v.name}",
+              onTap: () {
+                widget.onAddNode(
+                  NodeType(
+                    name: "GetVariable",
+                    isRenderInput: false,
+                    isRenderOutput: false,
+                    category: NodeCategory.variables,
+                    nodeBuilder: (id, position, blueprint) => GetVariableNode(
+                      id: id,
+                      position: position,
+                      blueprint: blueprint,
+                      variable: v,
+                    ),
                   ),
-                ),
-              );
-              widget.onDismiss();
-            },
-          ),
+                );
+                widget.onDismiss();
+              },
+            ),
+            MenuItemData(
+              title: "Set ${v.name}",
+              onTap: () {
+                widget.onAddNode(
+                  NodeType(
+                    name: "SetVariable",
+                    isRenderInput: false,
+                    isRenderOutput: false,
+                    category: NodeCategory.variables,
+                    nodeBuilder: (id, position, blueprint) => SetVariableNode(
+                      id: id,
+                      position: position,
+                      blueprint: blueprint,
+                      variable: v,
+                    ),
+                  ),
+                );
+                widget.onDismiss();
+              },
+            ),
+          ],
         )
         .toList();
     super.initState();

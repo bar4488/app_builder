@@ -45,4 +45,11 @@ final class Connection extends LinkedListEntry<Connection> {
 
   @override
   int get hashCode => startPin.hashCode ^ endPin.hashCode;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'startPin': startPin.id,
+      'endPin': endPin.id,
+    };
+  }
 }

@@ -6,6 +6,8 @@ import 'package:app_builder/models/pin.dart';
 import 'package:app_builder/models/variable.dart';
 
 class StringNode extends Node {
+  @override
+  String get typeName => "String";
   NodeSettigns _settigns;
   @override
   NodeSettigns get settings => _settigns;
@@ -16,10 +18,7 @@ class StringNode extends Node {
   StringNode(
       {required super.id, required super.position, required super.blueprint})
       : _settigns = StringNodeSettigns(),
-        super(
-          title: "String",
-          type: NodeKind.static,
-        ) {
+        super() {
     valuePin = OutputValuePin<String>(
       nodeId: id,
       label: "value",

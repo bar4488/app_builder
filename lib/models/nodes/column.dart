@@ -30,10 +30,12 @@ class ColumnNode extends MultiOutputNode {
     defaultValue: CrossAxisAlignment.start,
   );
 
+  @override
+  get typeName => "Column";
+
   ColumnNode(
       {required super.id, required super.position, required super.blueprint})
       : super(
-          title: "Column",
           hasRenderInput: true,
         );
 

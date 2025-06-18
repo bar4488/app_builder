@@ -9,6 +9,8 @@ import 'package:app_builder/models/variable.dart';
 
 class AppBarNode extends Node {
   @override
+  String get typeName => "AppBar";
+  @override
   final RenderData renderData = AppBarRenderData();
 
   @override
@@ -26,7 +28,6 @@ class AppBarNode extends Node {
   AppBarNode(
       {required super.id, required super.position, required super.blueprint})
       : super(
-          title: "AppBar",
           hasRenderInput: true,
         );
 

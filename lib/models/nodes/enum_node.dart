@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:runtime_type/runtime_type.dart';
 
 class EnumNode extends Node {
+  @override
+  String get typeName => "Enum";
   NodeSettigns _settigns;
   @override
   NodeSettigns get settings => _settigns;
@@ -29,10 +31,7 @@ class EnumNode extends Node {
   EnumNode(
       {required super.id, required super.position, required super.blueprint})
       : _settigns = EnumNodeSettigns(),
-        super(
-          title: "Enum",
-          type: NodeKind.static,
-        ) {
+        super() {
     valuePin = DynamicOutputValuePin(
       nodeId: id,
       label: "value",

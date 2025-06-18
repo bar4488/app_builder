@@ -8,6 +8,8 @@ import 'package:app_builder/state/blueprint_state.dart';
 import 'package:app_builder/utils/enums.dart';
 
 class ContainerNode extends Node {
+  @override
+  String get typeName => "Container";
   final RenderData _renderData = ContainerRenderData();
 
   @override
@@ -35,7 +37,6 @@ class ContainerNode extends Node {
   ContainerNode(
       {required super.id, required super.position, required super.blueprint})
       : super(
-          title: "Container",
           hasRenderInput: true,
         );
 

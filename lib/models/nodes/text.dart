@@ -10,6 +10,8 @@ import 'package:runtime_type/runtime_type.dart';
 
 class TextNode extends Node {
   @override
+  String get typeName => "Text";
+  @override
   final RenderData renderData = TextRenderData();
 
   @override
@@ -20,9 +22,7 @@ class TextNode extends Node {
   TextNode(
       {required super.id, required super.position, required super.blueprint})
       : super(
-          title: "Text",
           hasRenderInput: true,
-          type: NodeKind.static,
         );
 
   @override

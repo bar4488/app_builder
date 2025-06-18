@@ -33,17 +33,6 @@ class BlueprintState with ChangeNotifier {
     return _nodeMap[id];
   }
 
-  Pin? findPinByKey(PinKey key) {
-    for (var node in _nodes) {
-      for (var pin in node.allPins) {
-        if (pin.key == key) {
-          return pin;
-        }
-      }
-    }
-    return null;
-  }
-
   T postOrderWalk<T>(
     Node node, {
     required T Function(Node, List<T> children) action,
@@ -72,7 +61,7 @@ class BlueprintState with ChangeNotifier {
     newConn.startPin.addConnection(newConn);
     newConn.endPin.addConnection(newConn);
     print(
-      "Adding connection: ${newConn.startPin.key} -> ${newConn.endPin.key}",
+      "Adding connection: ${newConn.startPin.id} -> ${newConn.endPin.id}",
     );
 
     connections.add(newConn);
@@ -97,7 +86,7 @@ class BlueprintState with ChangeNotifier {
         .toList()
         .forEach((conn) {
       print(
-        "Removing connection: ${conn.startPin.key} -> ${conn.endPin.key}",
+        "Removing connection: ${conn.startPin.id} -> ${conn.endPin.id}",
       );
       conn.unlink();
       conn.startPin.onConnectionChanged();
@@ -194,7 +183,32 @@ class BlueprintState with ChangeNotifier {
   }
 
   void setVariableType(BlueprintVariable variable, VariableType newType) {
-    variable.type = newType;
+    variable.setType(newType);
+    notifyListeners();
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'nodes': _nodes.map((node) => node.toJson()).toList(),
+      'connections': connections.map((conn) => conn.toJson()).toList(),
+      'variables': variables.map((variable) => variable.toJson()).toList(),
+    };
+  }
+
+  void loadFromJson(Map<String, dynamic> json) {
+    removeNodes(_nodes);
+
+    var newNodes = (json['nodes'] as List<dynamic>)
+        .map<Node>((nodeJson) => Node.fromJson(nodeJson, this));
+    _nodes.clear();
+    _nodes.addAll(newNodes);
+    // connections = json['connections']
+    //     .map<Connection>((connJson) => Connection.fromJson(connJson, this))
+    //     .toList();
+    // variables = json['variables']
+    //     .map<BlueprintVariable>(
+    //         (variableJson) => BlueprintVariable.fromJson(variableJson))
+    //     .toList();
     notifyListeners();
   }
 }

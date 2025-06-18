@@ -7,6 +7,8 @@ import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/variable.dart';
 
 class GestureDetectorNode extends Node {
+  @override
+  String get typeName => "GestureDetector";
   final RenderData _renderData = GestureDetectorRenderData();
 
   @override
@@ -18,14 +20,13 @@ class GestureDetectorNode extends Node {
 
   RenderTarget child = RenderTarget(
     name: "Child",
-    required: false,
+    required: true,
   );
 
   late OutputExecutionPin onTap;
   GestureDetectorNode(
       {required super.id, required super.position, required super.blueprint})
       : super(
-          title: "GestureDetector",
           hasRenderInput: true,
         ) {
     onTap = OutputExecutionPin(

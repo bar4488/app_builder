@@ -9,6 +9,8 @@ import 'package:app_builder/models/variable.dart';
 import 'package:app_builder/state/blueprint_state.dart';
 
 class RowNode extends MultiOutputNode {
+  @override
+  get typeName => "Row";
   final RenderData _renderData;
 
   @override
@@ -41,7 +43,6 @@ class RowNode extends MultiOutputNode {
       {required super.id, required super.position, required super.blueprint})
       : _renderData = RowRenderData(),
         super(
-          title: "Row",
           hasRenderInput: true,
         );
 

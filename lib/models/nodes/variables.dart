@@ -2,12 +2,13 @@ import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/node_settings.dart';
 import 'package:app_builder/models/pin.dart';
 import 'package:app_builder/models/variable.dart';
-import 'package:app_builder/utils/enums.dart';
 import 'package:app_builder/widgets/blueprint_variables_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:runtime_type/runtime_type.dart';
 
 class GetVariableNode extends Node {
+  @override
+  String get typeName => "Variable";
   NodeSettigns _settigns;
   @override
   NodeSettigns get settings => _settigns;
@@ -22,8 +23,8 @@ class GetVariableNode extends Node {
     required super.position,
     required super.blueprint,
     required this.variable,
-  }) : _settigns = GetVariableNodeSettigns(),
-       super(title: "Variable", type: NodeKind.static) {
+  })  : _settigns = GetVariableNodeSettigns(),
+        super() {
     variable.addListener(didChangeType);
     valuePin = DynamicOutputValuePin(nodeId: id, label: "value");
     addOutputPin(valuePin);
@@ -63,36 +64,63 @@ class GetVariableNodeSettigns extends NodeSettigns<GetVariableNode> {
 }
 
 class SetVariableNode extends Node {
-  NodeVariable<String> text = NodeVariable(name: "Text");
+  @override
+  String get typeName => "SetVariable";
+  BlueprintVariable variable;
 
   @override
   final NodeSettigns settings = SetVariableNodeSettings();
 
   late InputExecutionPin execPin;
-  late InputValuePin inputValuePin;
+
+  VariableType? variableType;
+  late DynamicInputValuePin valuePin;
+  ValueNode? valueNode;
   SetVariableNode({
     required super.id,
     required super.position,
     required super.blueprint,
-  }) : super(title: "SetVariable") {
+    required this.variable,
+  }) : super() {
     execPin = InputExecutionPin(
       nodeId: id,
       label: "Exec",
       // ignore: avoid_print
-      onFire: (state) => print(text.value),
+      onFire: (state) {
+        variable.setValue(valueNode?.value);
+      },
     );
     addInputPin(execPin);
+    variable.addListener(didChangeType);
+    valuePin = DynamicInputValuePin(
+      nodeId: id,
+      label: "value",
+      onValueChanged: (newVal) {
+        valueNode = newVal;
+      },
+    );
+    addInputPin(valuePin);
+    didChangeType();
   }
 
-  @override
-  Iterable<NodeVariable> getVariables() => [text];
+  void didChangeType() {
+    if (variableType != variable.type) {
+      valuePin.setValueType(switch (variable.type) {
+        VariableType.integer => RuntimeType<int>(),
+        VariableType.double => RuntimeType<double>(),
+        VariableType.string => RuntimeType<String>(),
+        VariableType.boolean => RuntimeType<bool>(),
+      });
+      valuePin.onValueChanged?.call(null);
+    }
+  }
 }
 
 class SetVariableNodeSettings extends NodeSettigns<SetVariableNode> {
   @override
   Widget buildSettingsWidget(BuildContext context, SetVariableNode node) {
     return ListView(
-      children: [StringValueEditor(node: node, variable: node.text)],
+      children: [],
     );
   }
 }

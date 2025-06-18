@@ -8,6 +8,8 @@ import 'package:app_builder/models/variable.dart';
 
 class ScaffoldNode extends Node {
   @override
+  String get typeName => "Scaffold";
+  @override
   final RenderData renderData = ScaffoldRenderData();
 
   @override
@@ -25,7 +27,6 @@ class ScaffoldNode extends Node {
   ScaffoldNode(
       {required super.id, required super.position, required super.blueprint})
       : super(
-          title: "Scaffold",
           hasRenderInput: true,
         );
 

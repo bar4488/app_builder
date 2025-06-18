@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:app_builder/models/node.dart';
 import 'package:app_builder/models/render_data.dart';
 import 'package:app_builder/models/pin.dart';
-import 'package:app_builder/state/blueprint_state.dart';
 
 class ViewportNode extends Node {
+  @override
+  String get typeName => "Viewport";
   final RenderData _renderData;
 
   String? childId;
@@ -13,10 +14,7 @@ class ViewportNode extends Node {
   ViewportNode(
       {required super.id, required super.position, required super.blueprint})
       : _renderData = ViewportRenderData(),
-        super(
-          title: "Viewport",
-          type: NodeKind.static,
-        ) {
+        super() {
     addOutputPin(
       OutputRenderPin(
         nodeId: id,

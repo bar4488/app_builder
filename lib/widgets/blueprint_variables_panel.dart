@@ -7,15 +7,41 @@ enum VariableType { integer, double, string, boolean }
 
 class BlueprintVariable with ChangeNotifier {
   String name;
-  VariableType type;
+  VariableType _type;
+  VariableType get type => _type;
   late ChangeValueNode value;
 
-  BlueprintVariable({required this.name, required this.type}) {
+  BlueprintVariable({required this.name, required VariableType type})
+      : _type = type {
     value = switch (type) {
-      VariableType.integer => ChangeValueNode<int>(null),
-      VariableType.double => ChangeValueNode<double>(null),
-      VariableType.string => ChangeValueNode<String>(null),
-      VariableType.boolean => ChangeValueNode<bool>(null),
+      VariableType.integer => ChangeValueNode<int>(0),
+      VariableType.double => ChangeValueNode<double>(0.0),
+      VariableType.string => ChangeValueNode<String>(""),
+      VariableType.boolean => ChangeValueNode<bool>(false),
+    };
+  }
+
+  void setValue(dynamic newValue) {
+    //check that value is of a correct type
+    value.value = newValue;
+  }
+
+  void setType(VariableType newType) {
+    _type = newType;
+    value = switch (type) {
+      VariableType.integer => ChangeValueNode<int>(0),
+      VariableType.double => ChangeValueNode<double>(0.0),
+      VariableType.string => ChangeValueNode<String>(""),
+      VariableType.boolean => ChangeValueNode<bool>(false),
+    };
+    notifyListeners();
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'type': type.name,
+      'value': value.value,
     };
   }
 }
@@ -66,10 +92,7 @@ class BlueprintVariablesPanel extends StatelessWidget {
       padding: const EdgeInsets.all(8.0),
       child: Row(
         children: [
-          Expanded(
-            flex: 1,
-            child: _buildTypeWidget(variable, state),
-          ),
+          _buildTypeWidget(variable, state),
           const SizedBox(width: 8),
           Expanded(
             flex: 4,
@@ -85,6 +108,14 @@ class BlueprintVariablesPanel extends StatelessWidget {
               onChanged: (value) {
                 state.setVariableName(variable, value);
               },
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: () {},
+            icon: Icon(
+              Icons.settings,
+              size: 22,
             ),
           ),
         ],

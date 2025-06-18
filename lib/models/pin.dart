@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:app_builder/state/preview_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app_builder/models/connection.dart';
@@ -21,7 +23,7 @@ class PinKey extends ValueKey<String> {
 
 // Represents a connection pin on a node
 class Pin {
-  final PinKey key;
+  final String id;
   final String nodeId;
   final String label;
   final PinDirection direction;
@@ -40,15 +42,15 @@ class Pin {
     required this.direction,
     required this.type,
     this.multi = false,
-  }) : key = PinKey('${nodeId}_${label}_${direction.name}');
+  }) : id = Random().nextInt(0xffffffff).toRadixString(16);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Pin && runtimeType == other.runtimeType && key == other.key;
+      other is Pin && runtimeType == other.runtimeType && id == other.id;
 
   @override
-  int get hashCode => key.hashCode;
+  int get hashCode => id.hashCode;
 
   void onConnectionChanged() {}
 
@@ -68,6 +70,15 @@ class Pin {
 
   bool canConnectTo(Pin other) =>
       direction != other.direction && this.type == other.type;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'label': label,
+      'direction': direction.name,
+      'type': type.name,
+      'multi': multi
+    };
+  }
 }
 
 class InputRenderPin extends Pin {
@@ -85,6 +96,12 @@ class InputRenderPin extends Pin {
   @override
   bool canConnectTo(Pin other) {
     return super.canConnectTo(other) && other is OutputRenderPin;
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      ...super.toJson(),
+    };
   }
 }
 
